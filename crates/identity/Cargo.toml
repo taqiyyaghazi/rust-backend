@@ -9,6 +9,7 @@ license.workspace = true
 [dependencies]
 shared_kernel.workspace = true
 
+argon2.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 chrono.workspace = true

@@ -15,6 +15,7 @@ struct UserRow {
     id: Uuid,
     email: String,
     full_name: String,
+    password_hash: String,
     is_active: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
@@ -33,6 +34,7 @@ impl TryFrom<UserRow> for User {
             UserId::from_uuid(row.id),
             email,
             full_name,
+            row.password_hash,
             row.is_active,
             row.created_at,
             row.updated_at,
@@ -57,11 +59,12 @@ impl UserRepository for PostgresUserRepository {
     async fn save(&self, user: &User) -> Result<(), RepositoryError> {
         sqlx::query(
             r#"
-            INSERT INTO users (id, email, full_name, is_active, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO users (id, email, full_name, password_hash, is_active, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (id) DO UPDATE
             SET email = EXCLUDED.email,
                 full_name = EXCLUDED.full_name,
+                password_hash = EXCLUDED.password_hash,
                 is_active = EXCLUDED.is_active,
                 updated_at = EXCLUDED.updated_at
             "#,
@@ -69,6 +72,7 @@ impl UserRepository for PostgresUserRepository {
         .bind(user.id().as_uuid())
         .bind(user.email().as_str())
         .bind(user.full_name().as_str())
+        .bind(user.password_hash())
         .bind(user.is_active())
         .bind(user.created_at())
         .bind(user.updated_at())
@@ -87,7 +91,7 @@ impl UserRepository for PostgresUserRepository {
     async fn find_by_email(&self, email: &Email) -> Result<Option<User>, RepositoryError> {
         let row = sqlx::query_as::<_, UserRow>(
             r#"
-            SELECT id, email, full_name, is_active, created_at, updated_at
+            SELECT id, email, full_name, password_hash, is_active, created_at, updated_at
             FROM users
             WHERE email = $1
             "#,

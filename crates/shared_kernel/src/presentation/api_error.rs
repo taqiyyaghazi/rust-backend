@@ -6,18 +6,10 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// RFC 7807 / RFC 9457 Problem Details response body for consistent HTTP error reporting.
+/// Minimal JSON error response body.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct ProblemDetails {
-    /// URI reference that identifies the problem type.
-    #[serde(rename = "type")]
-    pub problem_type: String,
-    /// Short, human-readable summary of the problem type.
-    pub title: String,
-    /// HTTP status code.
-    pub status: u16,
-    /// Human-readable explanation specific to this occurrence of the problem.
-    pub detail: String,
     /// Machine-readable domain/application error code.
     pub error_code: String,
 }
@@ -63,10 +55,6 @@ impl ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let body = ProblemDetails {
-            problem_type: format!("urn:ddd-backend:error:{}", self.error_code.to_lowercase()),
-            title: self.title.to_string(),
-            status: self.status.as_u16(),
-            detail: self.detail,
             error_code: self.error_code.to_string(),
         };
 

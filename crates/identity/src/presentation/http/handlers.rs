@@ -3,14 +3,24 @@ use crate::{
     domain::errors::IdentityDomainError,
     presentation::{http::requests::RegisterUserRequest, state::IdentityHttpState},
 };
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{
+    extract::{rejection::JsonRejection, State},
+    http::StatusCode,
+    Json,
+};
 use shared_kernel::presentation::{ApiError, ProblemDetails};
 
 fn map_identity_error(err: IdentityApplicationError) -> ApiError {
     match err {
         IdentityApplicationError::Domain(domain_err) => match domain_err {
-            IdentityDomainError::InvalidEmail(_) | IdentityDomainError::InvalidFullName => {
-                ApiError::bad_request("IDENTITY_VALIDATION_ERROR", domain_err.to_string())
+            IdentityDomainError::InvalidEmail(_) => {
+                ApiError::bad_request("INVALID_EMAIL", domain_err.to_string())
+            }
+            IdentityDomainError::InvalidFullName => {
+                ApiError::bad_request("INVALID_FULL_NAME", domain_err.to_string())
+            }
+            IdentityDomainError::InvalidPassword => {
+                ApiError::bad_request("INVALID_PASSWORD", domain_err.to_string())
             }
         },
         IdentityApplicationError::EmailAlreadyExists(email) => ApiError::conflict(
@@ -38,13 +48,50 @@ fn map_identity_error(err: IdentityApplicationError) -> ApiError {
 )]
 pub async fn register_user_handler(
     State(state): State<IdentityHttpState>,
-    Json(payload): Json<RegisterUserRequest>,
+    payload: Result<Json<RegisterUserRequest>, JsonRejection>,
 ) -> Result<(StatusCode, Json<UserDto>), ApiError> {
+    let Json(payload) = payload.map_err(|rejection| match rejection {
+        JsonRejection::MissingJsonContentType(_) => ApiError::bad_request(
+            "INVALID_CONTENT_TYPE",
+            "Request must use 'Content-Type: application/json' with fields: email, full_name",
+        ),
+        _ => ApiError::bad_request(
+            "INVALID_JSON_PAYLOAD",
+            "Invalid JSON payload. Expected JSON object with fields: email (string), full_name (string)",
+        ),
+    })?;
+
+    let (email, full_name, password) = match (payload.email, payload.full_name, payload.password) {
+        (Some(email), Some(full_name), Some(password)) => (email, full_name, password),
+        (None, Some(_), Some(_)) => {
+            return Err(ApiError::bad_request("MISSING_EMAIL", "Missing required field: email"))
+        }
+        (Some(_), None, Some(_)) => {
+            return Err(ApiError::bad_request(
+                "MISSING_FULL_NAME",
+                "Missing required field: fullName",
+            ))
+        }
+        (Some(_), Some(_), None) => {
+            return Err(ApiError::bad_request(
+                "MISSING_PASSWORD",
+                "Missing required field: password",
+            ))
+        }
+        _ => {
+            return Err(ApiError::bad_request(
+                "MISSING_REQUIRED_FIELDS",
+                "Missing required fields: email, fullName, password",
+            ))
+        }
+    };
+
     let user = state
         .register_user
         .handle(RegisterUserCommand {
-            email: payload.email,
-            full_name: payload.full_name,
+            email,
+            full_name,
+            password,
         })
         .await
         .map_err(map_identity_error)?;

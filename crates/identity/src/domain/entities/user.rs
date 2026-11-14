@@ -7,6 +7,7 @@ pub struct User {
     id: UserId,
     email: Email,
     full_name: FullName,
+    password_hash: String,
     is_active: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
@@ -14,7 +15,7 @@ pub struct User {
 
 impl User {
     /// Factory method to register a new active `User` aggregate.
-    pub fn register(email: Email, full_name: FullName) -> Self {
+    pub fn register(email: Email, full_name: FullName, password_hash: impl Into<String>) -> Self {
         let id = UserId::new();
         let now = Utc::now();
 
@@ -22,6 +23,7 @@ impl User {
             id,
             email,
             full_name,
+            password_hash: password_hash.into(),
             is_active: true,
             created_at: now,
             updated_at: now,
@@ -33,6 +35,7 @@ impl User {
         id: UserId,
         email: Email,
         full_name: FullName,
+        password_hash: impl Into<String>,
         is_active: bool,
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
@@ -41,6 +44,7 @@ impl User {
             id,
             email,
             full_name,
+            password_hash: password_hash.into(),
             is_active,
             created_at,
             updated_at,
@@ -57,6 +61,10 @@ impl User {
 
     pub fn full_name(&self) -> &FullName {
         &self.full_name
+    }
+
+    pub fn password_hash(&self) -> &str {
+        &self.password_hash
     }
 
     pub fn is_active(&self) -> bool {
@@ -80,7 +88,7 @@ mod tests {
     fn user_registration_sets_active_state() {
         let email = Email::parse("siti@example.com").unwrap();
         let name = FullName::parse("Siti Aminah").unwrap();
-        let user = User::register(email, name);
+        let user = User::register(email, name, "hashed_pw");
 
         assert!(user.is_active());
     }

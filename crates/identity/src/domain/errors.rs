@@ -7,4 +7,7 @@ pub enum IdentityDomainError {
 
     #[error("Full name must be between 2 and 150 characters")]
     InvalidFullName,
+
+    #[error("Password must be between 8 and 128 characters")]
+    InvalidPassword,
 }

@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 /// Data Transfer Object representing a User across Application & Presentation boundaries.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct UserDto {
     pub id: Uuid,
     pub email: String,

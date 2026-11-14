@@ -58,7 +58,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .body(Body::from(
             json!({
                 "email": unique_email,
-                "full_name": "Andi Wijaya"
+                "fullName": "Andi Wijaya",
+                "password": "secret123"
             })
             .to_string(),
         ))
@@ -80,7 +81,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .body(Body::from(
             json!({
                 "email": unique_email,
-                "full_name": "Andi Wijaya"
+                "fullName": "Andi Wijaya",
+                "password": "secret123"
             })
             .to_string(),
         ))
@@ -97,7 +99,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .body(Body::from(
             json!({
                 "email": "not-an-email",
-                "full_name": "Andi"
+                "fullName": "Andi",
+                "password": "secret123"
             })
             .to_string(),
         ))
@@ -142,7 +145,8 @@ async fn register_endpoint_and_removed_routes_flow() {
             .body(Body::from(
                 json!({
                     "email": race_email,
-                    "full_name": "Budi Santoso"
+                    "fullName": "Budi Santoso",
+                    "password": "secret123"
                 })
                 .to_string(),
             ))
@@ -179,9 +183,68 @@ async fn register_endpoint_and_removed_routes_flow() {
         .header("origin", "https://evil.example.com")
         .body(Body::empty())
         .unwrap();
-    let blocked_cors_res = app.oneshot(blocked_cors_req).await.unwrap();
+    let blocked_cors_res = app.clone().oneshot(blocked_cors_req).await.unwrap();
     assert!(blocked_cors_res
         .headers()
         .get("access-control-allow-origin")
         .is_none());
+
+    // 8. Missing Content-Type / empty body and null JSON return JSON ProblemDetails (400)
+    let no_ct_req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/register")
+        .body(Body::empty())
+        .unwrap();
+    let no_ct_res = app.clone().oneshot(no_ct_req).await.unwrap();
+    assert_eq!(no_ct_res.status(), StatusCode::BAD_REQUEST);
+    let no_ct_body: serde_json::Value = serde_json::from_slice(
+        &no_ct_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(no_ct_body["errorCode"], "INVALID_CONTENT_TYPE");
+
+    let null_json_req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/register")
+        .header("content-type", "application/json")
+        .body(Body::from("null"))
+        .unwrap();
+    let null_json_res = app.clone().oneshot(null_json_req).await.unwrap();
+    assert_eq!(null_json_res.status(), StatusCode::BAD_REQUEST);
+    let null_json_body: serde_json::Value = serde_json::from_slice(
+        &null_json_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(null_json_body["errorCode"], "INVALID_JSON_PAYLOAD");
+
+    // 9. Missing fields return specific error codes
+    let empty_obj_req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/register")
+        .header("content-type", "application/json")
+        .body(Body::from("{}"))
+        .unwrap();
+    let empty_obj_res = app.clone().oneshot(empty_obj_req).await.unwrap();
+    assert_eq!(empty_obj_res.status(), StatusCode::BAD_REQUEST);
+    let empty_obj_body: serde_json::Value = serde_json::from_slice(
+        &empty_obj_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(empty_obj_body["errorCode"], "MISSING_REQUIRED_FIELDS");
+
+    let missing_name_req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/register")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            json!({ "email": "a@example.com", "password": "secret123" }).to_string(),
+        ))
+        .unwrap();
+    let missing_name_res = app.oneshot(missing_name_req).await.unwrap();
+    assert_eq!(missing_name_res.status(), StatusCode::BAD_REQUEST);
+    let missing_name_body: serde_json::Value = serde_json::from_slice(
+        &missing_name_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(missing_name_body["errorCode"], "MISSING_FULL_NAME");
 }

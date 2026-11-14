@@ -1,6 +1,9 @@
 use crate::{config::AppConfig, openapi::ApiDoc};
 use axum::{
+    extract::Request,
     http::{header, HeaderValue, Method},
+    middleware::{self, Next},
+    response::Response,
     routing::get,
     Json, Router,
 };
@@ -11,7 +14,10 @@ use identity::{
 };
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     trace::TraceLayer,
@@ -19,6 +25,24 @@ use tower_http::{
 use tracing::info;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+async fn log_request(req: Request, next: Next) -> Response {
+    let method = req.method().clone();
+    let endpoint = req.uri().path().to_string();
+    let start = Instant::now();
+
+    let res = next.run(req).await;
+
+    info!(
+        method = %method,
+        endpoint = %endpoint,
+        status = res.status().as_u16(),
+        latency_ms = start.elapsed().as_millis() as u64,
+        "HTTP request"
+    );
+
+    res
+}
 
 async fn health_check_handler() -> Json<Value> {
     Json(json!({
@@ -60,6 +84,7 @@ pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
         .route("/health", get(health_check_handler))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .merge(identity_router(identity_state))
+        .layer(middleware::from_fn(log_request))
         .layer(TraceLayer::new_for_http())
         .layer(cors);
 
