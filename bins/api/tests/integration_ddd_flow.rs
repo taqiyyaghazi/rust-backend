@@ -35,6 +35,7 @@ fn test_config() -> AppConfig {
         host: "127.0.0.1".to_string(),
         port: 0,
         database_url,
+        cors_allowed_origins: vec!["http://localhost:3000".to_string()],
     }
 }
 
@@ -128,6 +129,59 @@ async fn register_endpoint_and_removed_routes_flow() {
         .uri("/api/v1/orders")
         .body(Body::empty())
         .unwrap();
-    let old_orders_res = app.oneshot(old_orders_req).await.unwrap();
+    let old_orders_res = app.clone().oneshot(old_orders_req).await.unwrap();
     assert_eq!(old_orders_res.status(), StatusCode::NOT_FOUND);
+
+    // 6. Concurrent duplicate registration -> one 201 Created, one 409 Conflict (never 500)
+    let race_email = format!("race.{}@example.com", Uuid::new_v4().simple());
+    let make_race_req = || {
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/register")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                json!({
+                    "email": race_email,
+                    "full_name": "Budi Santoso"
+                })
+                .to_string(),
+            ))
+            .unwrap()
+    };
+
+    let (res_a, res_b) = tokio::join!(
+        app.clone().oneshot(make_race_req()),
+        app.clone().oneshot(make_race_req())
+    );
+    let mut statuses = [res_a.unwrap().status(), res_b.unwrap().status()];
+    statuses.sort_by_key(|s| s.as_u16());
+    assert_eq!(statuses, [StatusCode::CREATED, StatusCode::CONFLICT]);
+
+    // 7. CORS allows configured origin and omits disallowed origin
+    let allowed_cors_req = Request::builder()
+        .method("GET")
+        .uri("/health")
+        .header("origin", "http://localhost:3000")
+        .body(Body::empty())
+        .unwrap();
+    let allowed_cors_res = app.clone().oneshot(allowed_cors_req).await.unwrap();
+    assert_eq!(
+        allowed_cors_res
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|v| v.to_str().ok()),
+        Some("http://localhost:3000")
+    );
+
+    let blocked_cors_req = Request::builder()
+        .method("GET")
+        .uri("/health")
+        .header("origin", "https://evil.example.com")
+        .body(Body::empty())
+        .unwrap();
+    let blocked_cors_res = app.oneshot(blocked_cors_req).await.unwrap();
+    assert!(blocked_cors_res
+        .headers()
+        .get("access-control-allow-origin")
+        .is_none());
 }

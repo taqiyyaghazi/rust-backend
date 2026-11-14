@@ -38,7 +38,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "chrono",
  "dotenvy",
  "http-body-util",
  "identity",
@@ -866,7 +865,6 @@ dependencies = [
  "shared_kernel",
  "sqlx",
  "thiserror 1.0.69",
- "tokio",
  "tracing",
  "utoipa",
  "uuid",
@@ -1548,16 +1546,9 @@ dependencies = [
 name = "shared_kernel"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "axum",
- "chrono",
  "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
  "utoipa",
- "uuid",
 ]
 
 [[package]]

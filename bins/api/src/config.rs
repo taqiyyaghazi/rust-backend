@@ -5,6 +5,7 @@ pub struct AppConfig {
     pub host: String,
     pub port: u16,
     pub database_url: String,
+    pub cors_allowed_origins: Vec<String>,
 }
 
 impl AppConfig {
@@ -21,10 +22,19 @@ impl AppConfig {
             "postgres://ddd_user:ddd_password@localhost:5432/ddd_backend".to_string()
         });
 
+        let cors_allowed_origins = env::var("CORS_ALLOWED_ORIGINS")
+            .unwrap_or_default()
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToString::to_string)
+            .collect();
+
         Self {
             host,
             port,
             database_url,
+            cors_allowed_origins,
         }
     }
 

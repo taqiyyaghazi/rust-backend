@@ -18,11 +18,8 @@ Proyek backend **Rust** menggunakan arsitektur **Domain-Driven Design (DDD)** de
 ├── migrations/                 # SQLx PostgreSQL migrations
 │   └── 20260101000001_create_users_table.sql
 ├── crates/
-│   ├── shared_kernel/          # Building blocks DDD lintas Bounded Context
+│   ├── shared_kernel/          # Building blocks lintas Bounded Context
 │   │   └── src/
-│   │       ├── domain/         # DomainEvent trait & DomainEventEnvelope
-│   │       ├── application/    # EventBus & EventSubscriber trait
-│   │       ├── infrastructure/ # InMemoryEventBus & AuditLogEventSubscriber
 │   │       └── presentation/   # RFC 7807 ProblemDetails & ApiError
 │   └── identity/               # Bounded Context: Identity & User Registration
 │       └── src/

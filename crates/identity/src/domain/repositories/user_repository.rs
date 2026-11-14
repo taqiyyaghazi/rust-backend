@@ -4,6 +4,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum RepositoryError {
+    #[error("Unique constraint conflict")]
+    Conflict,
+
     #[error("Database/storage error: {0}")]
     Storage(String),
 

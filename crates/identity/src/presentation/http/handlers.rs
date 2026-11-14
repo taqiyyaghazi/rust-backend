@@ -17,7 +17,10 @@ fn map_identity_error(err: IdentityApplicationError) -> ApiError {
             "EMAIL_ALREADY_EXISTS",
             format!("Email '{}' is already registered", email),
         ),
-        IdentityApplicationError::Repository(repo_err) => ApiError::internal(repo_err.to_string()),
+        IdentityApplicationError::Repository(repo_err) => {
+            tracing::error!(error = %repo_err, "Identity repository error");
+            ApiError::internal("An internal error occurred")
+        }
     }
 }
 

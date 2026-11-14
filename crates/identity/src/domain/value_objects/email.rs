@@ -9,6 +9,9 @@ pub struct Email(String);
 impl Email {
     pub fn parse(raw: impl Into<String>) -> Result<Self, IdentityDomainError> {
         let normalized = raw.into().trim().to_lowercase();
+        if normalized.chars().count() > 255 {
+            return Err(IdentityDomainError::InvalidEmail(normalized));
+        }
         let parts: Vec<&str> = normalized.split('@').collect();
         if parts.len() != 2 {
             return Err(IdentityDomainError::InvalidEmail(normalized));
@@ -50,5 +53,6 @@ mod tests {
         assert!(Email::parse("invalid-email").is_err());
         assert!(Email::parse("@example.com").is_err());
         assert!(Email::parse("user@localhost").is_err());
+        assert!(Email::parse(format!("{}@example.com", "a".repeat(250))).is_err());
     }
 }

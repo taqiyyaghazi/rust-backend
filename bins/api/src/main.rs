@@ -17,7 +17,6 @@ async fn main() -> anyhow::Result<()> {
 
     info!(
         address = %bind_addr,
-        database_url = %config.database_url,
         "Starting Rust DDD Modular Monolith API Server"
     );
 

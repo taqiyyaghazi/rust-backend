@@ -2,12 +2,12 @@ use crate::{
     application::{dto::UserDto, errors::IdentityApplicationError},
     domain::{
         entities::User,
-        repositories::UserRepository,
+        repositories::{RepositoryError, UserRepository},
         value_objects::{Email, FullName},
     },
 };
-use shared_kernel::application::EventBus;
 use std::sync::Arc;
+use tracing::info;
 
 #[derive(Debug, Clone)]
 pub struct RegisterUserCommand {
@@ -19,15 +19,11 @@ pub struct RegisterUserCommand {
 #[derive(Clone)]
 pub struct RegisterUserHandler {
     user_repository: Arc<dyn UserRepository>,
-    event_bus: Arc<dyn EventBus>,
 }
 
 impl RegisterUserHandler {
-    pub fn new(user_repository: Arc<dyn UserRepository>, event_bus: Arc<dyn EventBus>) -> Self {
-        Self {
-            user_repository,
-            event_bus,
-        }
+    pub fn new(user_repository: Arc<dyn UserRepository>) -> Self {
+        Self { user_repository }
     }
 
     pub async fn handle(
@@ -43,11 +39,17 @@ impl RegisterUserHandler {
             ));
         }
 
-        let mut user = User::register(email, full_name);
-        self.user_repository.save(&user).await?;
+        let user = User::register(email, full_name);
+        if let Err(err) = self.user_repository.save(&user).await {
+            return match err {
+                RepositoryError::Conflict => Err(IdentityApplicationError::EmailAlreadyExists(
+                    user.email().to_string(),
+                )),
+                other => Err(other.into()),
+            };
+        }
 
-        let events = user.pull_domain_events();
-        self.event_bus.publish_all(events).await;
+        info!(user_id = %user.id(), email = %user.email(), "User registered");
 
         Ok(UserDto::from(&user))
     }

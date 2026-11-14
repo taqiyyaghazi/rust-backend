@@ -1,5 +1,4 @@
 use crate::{application::commands::RegisterUserHandler, domain::repositories::UserRepository};
-use shared_kernel::application::EventBus;
 use std::sync::Arc;
 
 /// Presentation state holding the `RegisterUserHandler` use case.
@@ -9,9 +8,9 @@ pub struct IdentityHttpState {
 }
 
 impl IdentityHttpState {
-    pub fn new(user_repository: Arc<dyn UserRepository>, event_bus: Arc<dyn EventBus>) -> Self {
+    pub fn new(user_repository: Arc<dyn UserRepository>) -> Self {
         Self {
-            register_user: RegisterUserHandler::new(user_repository, event_bus),
+            register_user: RegisterUserHandler::new(user_repository),
         }
     }
 }

@@ -16,10 +16,7 @@ async fn main() -> anyhow::Result<()> {
         "postgres://ddd_user:ddd_password@localhost:5432/ddd_backend".to_string()
     });
 
-    info!(
-        database_url = %database_url,
-        "Connecting to PostgreSQL for running database migrations..."
-    );
+    info!("Connecting to PostgreSQL for running database migrations...");
 
     let pool = PgPoolOptions::new()
         .max_connections(5)

@@ -26,3 +26,17 @@ impl fmt::Display for FullName {
         write!(f, "{}", self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn full_name_validates_boundaries_and_trims() {
+        assert_eq!(FullName::parse("  AB ").unwrap().as_str(), "AB");
+        assert!(FullName::parse(" ").is_err());
+        assert!(FullName::parse("A").is_err());
+        assert!(FullName::parse("a".repeat(150)).is_ok());
+        assert!(FullName::parse("a".repeat(151)).is_err());
+    }
+}

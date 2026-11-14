@@ -41,29 +41,11 @@ impl ApiError {
         }
     }
 
-    pub fn not_found(error_code: &'static str, detail: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::NOT_FOUND,
-            error_code,
-            title: "Resource Not Found",
-            detail: detail.into(),
-        }
-    }
-
     pub fn conflict(error_code: &'static str, detail: impl Into<String>) -> Self {
         Self {
             status: StatusCode::CONFLICT,
             error_code,
             title: "Domain Conflict / Rule Violation",
-            detail: detail.into(),
-        }
-    }
-
-    pub fn unprocessable(error_code: &'static str, detail: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::UNPROCESSABLE_ENTITY,
-            error_code,
-            title: "Unprocessable Domain Rule",
             detail: detail.into(),
         }
     }

@@ -74,7 +74,12 @@ impl UserRepository for PostgresUserRepository {
         .bind(user.updated_at())
         .execute(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Storage(e.to_string()))?;
+        .map_err(|e| match &e {
+            sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
+                RepositoryError::Conflict
+            }
+            _ => RepositoryError::Storage(e.to_string()),
+        })?;
 
         Ok(())
     }
