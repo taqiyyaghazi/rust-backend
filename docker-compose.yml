@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ddd_rust_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ddd_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ddd_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ddd_backend}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ddd_user} -d ${POSTGRES_DB:-ddd_backend}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ddd_rust_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8080
+      DATABASE_URL: postgres://${POSTGRES_USER:-ddd_user}:${POSTGRES_PASSWORD:-ddd_password}@postgres:5432/${POSTGRES_DB:-ddd_backend}
+      RUST_LOG: info,api=debug,identity=debug,shared_kernel=debug,tower_http=debug
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
