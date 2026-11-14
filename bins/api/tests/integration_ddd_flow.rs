@@ -126,6 +126,11 @@ async fn register_endpoint_and_removed_routes_flow() {
         .unwrap();
     let old_users_res = app.clone().oneshot(old_users_req).await.unwrap();
     assert_eq!(old_users_res.status(), StatusCode::NOT_FOUND);
+    let old_users_body: serde_json::Value = serde_json::from_slice(
+        &old_users_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(old_users_body["errorCode"], "NOT_FOUND");
 
     let old_orders_req = Request::builder()
         .method("POST")
@@ -240,11 +245,66 @@ async fn register_endpoint_and_removed_routes_flow() {
             json!({ "email": "a@example.com", "password": "secret123" }).to_string(),
         ))
         .unwrap();
-    let missing_name_res = app.oneshot(missing_name_req).await.unwrap();
+    let missing_name_res = app.clone().oneshot(missing_name_req).await.unwrap();
     assert_eq!(missing_name_res.status(), StatusCode::BAD_REQUEST);
     let missing_name_body: serde_json::Value = serde_json::from_slice(
         &missing_name_res.into_body().collect().await.unwrap().to_bytes(),
     )
     .unwrap();
     assert_eq!(missing_name_body["errorCode"], "MISSING_FULL_NAME");
+
+    // 10. Short password -> 400 INVALID_PASSWORD
+    let short_pw_req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/register")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            json!({
+                "email": "pw@example.com",
+                "fullName": "Andi Wijaya",
+                "password": "short"
+            })
+            .to_string(),
+        ))
+        .unwrap();
+    let short_pw_res = app.clone().oneshot(short_pw_req).await.unwrap();
+    assert_eq!(short_pw_res.status(), StatusCode::BAD_REQUEST);
+    let short_pw_body: serde_json::Value = serde_json::from_slice(
+        &short_pw_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(short_pw_body["errorCode"], "INVALID_PASSWORD");
+
+    // 11. Wrong method -> 405 METHOD_NOT_ALLOWED JSON
+    let method_req = Request::builder()
+        .method("GET")
+        .uri("/api/v1/register")
+        .body(Body::empty())
+        .unwrap();
+    let method_res = app.clone().oneshot(method_req).await.unwrap();
+    assert_eq!(method_res.status(), StatusCode::METHOD_NOT_ALLOWED);
+    let method_body: serde_json::Value = serde_json::from_slice(
+        &method_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(method_body["errorCode"], "METHOD_NOT_ALLOWED");
+
+    // 12. Oversized body (> 16 KB) -> 413 PAYLOAD_TOO_LARGE JSON
+    let large_body = format!(
+        r#"{{"email":"big@example.com","fullName":"{}","password":"secret123"}}"#,
+        "a".repeat(20 * 1024)
+    );
+    let large_req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/register")
+        .header("content-type", "application/json")
+        .body(Body::from(large_body))
+        .unwrap();
+    let large_res = app.oneshot(large_req).await.unwrap();
+    assert_eq!(large_res.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let large_json: serde_json::Value = serde_json::from_slice(
+        &large_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(large_json["errorCode"], "PAYLOAD_TOO_LARGE");
 }

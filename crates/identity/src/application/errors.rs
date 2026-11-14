@@ -9,6 +9,9 @@ pub enum IdentityApplicationError {
     #[error("Email '{0}' is already registered")]
     EmailAlreadyExists(String),
 
+    #[error("Password hashing error")]
+    PasswordHashing,
+
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 }

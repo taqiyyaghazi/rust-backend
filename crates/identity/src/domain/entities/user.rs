@@ -2,7 +2,7 @@ use crate::domain::value_objects::{Email, FullName, UserId};
 use chrono::{DateTime, Utc};
 
 /// `User` Aggregate Root in the Identity Bounded Context.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct User {
     id: UserId,
     email: Email,

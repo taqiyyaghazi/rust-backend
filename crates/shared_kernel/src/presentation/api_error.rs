@@ -19,35 +19,48 @@ pub struct ProblemDetails {
 pub struct ApiError {
     pub status: StatusCode,
     pub error_code: &'static str,
-    pub title: &'static str,
-    pub detail: String,
 }
 
 impl ApiError {
-    pub fn bad_request(error_code: &'static str, detail: impl Into<String>) -> Self {
+    pub fn bad_request(error_code: &'static str) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
             error_code,
-            title: "Bad Request",
-            detail: detail.into(),
         }
     }
 
-    pub fn conflict(error_code: &'static str, detail: impl Into<String>) -> Self {
+    pub fn conflict(error_code: &'static str) -> Self {
         Self {
             status: StatusCode::CONFLICT,
             error_code,
-            title: "Domain Conflict / Rule Violation",
-            detail: detail.into(),
         }
     }
 
-    pub fn internal(detail: impl Into<String>) -> Self {
+    pub fn not_found() -> Self {
+        Self {
+            status: StatusCode::NOT_FOUND,
+            error_code: "NOT_FOUND",
+        }
+    }
+
+    pub fn method_not_allowed() -> Self {
+        Self {
+            status: StatusCode::METHOD_NOT_ALLOWED,
+            error_code: "METHOD_NOT_ALLOWED",
+        }
+    }
+
+    pub fn payload_too_large() -> Self {
+        Self {
+            status: StatusCode::PAYLOAD_TOO_LARGE,
+            error_code: "PAYLOAD_TOO_LARGE",
+        }
+    }
+
+    pub fn internal() -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             error_code: "INTERNAL_SERVER_ERROR",
-            title: "Internal Server Error",
-            detail: detail.into(),
         }
     }
 }

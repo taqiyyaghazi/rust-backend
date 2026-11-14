@@ -14,7 +14,7 @@ use argon2::{
 use std::sync::Arc;
 use tracing::info;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RegisterUserCommand {
     pub email: String,
     pub full_name: String,
@@ -48,11 +48,16 @@ impl RegisterUserHandler {
             ));
         }
 
-        let salt = SaltString::generate(&mut OsRng);
-        let password_hash = Argon2::default()
-            .hash_password(cmd.password.as_bytes(), &salt)
-            .map_err(|e| RepositoryError::Storage(e.to_string()))?
-            .to_string();
+        let raw_password = cmd.password;
+        let password_hash = tokio::task::spawn_blocking(move || {
+            let salt = SaltString::generate(&mut OsRng);
+            Argon2::default()
+                .hash_password(raw_password.as_bytes(), &salt)
+                .map(|h| h.to_string())
+        })
+        .await
+        .map_err(|_| IdentityApplicationError::PasswordHashing)?
+        .map_err(|_| IdentityApplicationError::PasswordHashing)?;
 
         let user = User::register(email, full_name, password_hash);
         if let Err(err) = self.user_repository.save(&user).await {
@@ -64,7 +69,7 @@ impl RegisterUserHandler {
             };
         }
 
-        info!(user_id = %user.id(), email = %user.email(), "User registered");
+        info!(user_id = %user.id(), "User registered");
 
         Ok(UserDto::from(&user))
     }

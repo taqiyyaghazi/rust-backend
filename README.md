@@ -20,7 +20,7 @@ Proyek backend **Rust** menggunakan arsitektur **Domain-Driven Design (DDD)** de
 ├── crates/
 │   ├── shared_kernel/          # Building blocks lintas Bounded Context
 │   │   └── src/
-│   │       └── presentation/   # RFC 7807 ProblemDetails & ApiError
+│   │       └── presentation/   # ApiError & error JSON response (ProblemDetails)
 │   └── identity/               # Bounded Context: Identity & User Registration
 │       └── src/
 │           ├── domain/         # User (Aggregate Root), Email/FullName/UserId (VO), UserRepository trait
@@ -77,6 +77,9 @@ cargo test --workspace
 
 ## Endpoint API Tersedia
 - **Register User**: `POST http://localhost:8080/api/v1/register`
+  - Request body (`camelCase`): `{"email": "...", "fullName": "...", "password": "..."}` (password 8–128 karakter, disimpan sebagai hash Argon2)
+  - Response error (semua status error mengembalikan JSON): `{"errorCode": "..."}`
+  - CORS dikontrol melalui environment variable `CORS_ALLOWED_ORIGINS` (daftar origin dipisahkan koma di `.env`)
 - **Swagger UI**: `http://localhost:8080/swagger-ui`
 - **OpenAPI JSON**: `http://localhost:8080/api-docs/openapi.json`
 - **Health Check**: `http://localhost:8080/health`

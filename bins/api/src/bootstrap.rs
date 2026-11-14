@@ -1,6 +1,6 @@
 use crate::{config::AppConfig, openapi::ApiDoc};
 use axum::{
-    extract::Request,
+    extract::{DefaultBodyLimit, Request},
     http::{header, HeaderValue, Method},
     middleware::{self, Next},
     response::Response,
@@ -13,15 +13,13 @@ use identity::{
     presentation::{identity_router, IdentityHttpState},
 };
 use serde_json::{json, Value};
+use shared_kernel::presentation::ApiError;
 use sqlx::postgres::PgPoolOptions;
 use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use tower_http::{
-    cors::{AllowOrigin, CorsLayer},
-    trace::TraceLayer,
-};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::info;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -84,9 +82,11 @@ pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
         .route("/health", get(health_check_handler))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .merge(identity_router(identity_state))
-        .layer(middleware::from_fn(log_request))
-        .layer(TraceLayer::new_for_http())
-        .layer(cors);
+        .fallback(|| async { ApiError::not_found() })
+        .method_not_allowed_fallback(|| async { ApiError::method_not_allowed() })
+        .layer(DefaultBodyLimit::max(16 * 1024))
+        .layer(cors)
+        .layer(middleware::from_fn(log_request));
 
     Ok(app)
 }
