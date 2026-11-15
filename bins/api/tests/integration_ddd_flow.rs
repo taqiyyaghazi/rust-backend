@@ -29,6 +29,7 @@ fn test_config() -> AppConfig {
     config.host = "127.0.0.1".to_string();
     config.port = 0;
     config.cors_allowed_origins = vec!["http://localhost:3000".to_string()];
+    config.jwt_secret = "test-only-jwt-secret-at-least-32-bytes".to_string();
     config
 }
 
@@ -464,6 +465,11 @@ async fn register_endpoint_and_removed_routes_flow() {
         .await
         .unwrap();
     assert_eq!(reuse_res.status(), StatusCode::UNAUTHORIZED);
+    let reuse_body: serde_json::Value = serde_json::from_slice(
+        &reuse_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(reuse_body["errorCode"], "INVALID_REFRESH_TOKEN");
 
     // Logout idempotently revokes the rotated refreshToken
     for _ in 0..2 {
@@ -498,4 +504,14 @@ async fn register_endpoint_and_removed_routes_flow() {
         .await
         .unwrap();
     assert_eq!(after_logout_refresh.status(), StatusCode::UNAUTHORIZED);
+    let after_logout_body: serde_json::Value = serde_json::from_slice(
+        &after_logout_refresh
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(after_logout_body["errorCode"], "INVALID_REFRESH_TOKEN");
 }

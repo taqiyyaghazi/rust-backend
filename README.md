@@ -16,17 +16,18 @@ Proyek backend **Rust** menggunakan arsitektur **Domain-Driven Design (DDD)** de
 │   ├── migrate.sh              # Script mandiri untuk mengeksekusi migrasi database
 │   └── test_with_docker.sh     # Menjalankan Docker Compose -> Migrasi -> Integration Test
 ├── migrations/                 # SQLx PostgreSQL migrations
-│   └── 20260101000001_create_users_table.sql
+│   ├── 20260101000001_create_users_table.sql
+│   └── 20260101000002_create_refresh_tokens_table.sql
 ├── crates/
 │   ├── shared_kernel/          # Building blocks lintas Bounded Context
 │   │   └── src/
-│   │       └── presentation/   # ApiError & error JSON response (ProblemDetails)
-│   └── identity/               # Bounded Context: Identity & User Registration
+│   │       └── presentation/   # ApiError, ProblemDetails & AuthenticatedUser JWT extractor
+│   └── identity/               # Bounded Context: Identity & Session Lifecycle
 │       └── src/
-│           ├── domain/         # User (Aggregate Root), Email/FullName/UserId (VO), UserRepository trait
-│           ├── application/    # RegisterUserCommand, RegisterUserHandler, UserDto
-│           ├── infrastructure/ # PostgresUserRepository (sqlx murni)
-│           └── presentation/   # Axum handler (POST /api/v1/register) & identity_router
+│           ├── domain/         # User, RefreshToken, Value Objects, Repository traits
+│           ├── application/    # Register/Login/Refresh/Logout commands, GetCurrentUser query, TokenService
+│           ├── infrastructure/ # PostgresUserRepository & PostgresRefreshTokenRepository (sqlx)
+│           └── presentation/   # Axum handlers (/register, /login, /refresh, /logout, /me) & identity_router
 └── bins/
     └── api/                    # Composition Root (Binary utama & Runner Migrasi)
         ├── src/
@@ -78,8 +79,19 @@ cargo test --workspace
 ## Endpoint API Tersedia
 - **Register User**: `POST http://localhost:8080/api/v1/register`
   - Request body (`camelCase`): `{"email": "...", "fullName": "...", "password": "..."}` (password 8–128 karakter, disimpan sebagai hash Argon2)
+  - Response `201 Created`: `{"user": {...}, "accessToken": "...", "refreshToken": "...", "expiresIn": 900}`
+- **Login**: `POST http://localhost:8080/api/v1/login`
+  - Request body: `{"email": "...", "password": "..."}` → Response `200 OK` dengan pasangan `accessToken` & `refreshToken`
+- **Refresh Token**: `POST http://localhost:8080/api/v1/refresh`
+  - Request body: `{"refreshToken": "..."}` → Rotasi atomik token lama, Response `200 OK` dengan pasangan token baru
+- **Logout**: `POST http://localhost:8080/api/v1/logout`
+  - Request body: `{"refreshToken": "..."}` → Mencabut refresh token secara idempoten (`204 No Content`)
+- **Current User**: `GET http://localhost:8080/api/v1/me`
+  - Membutuhkan header `Authorization: Bearer <accessToken>` → Response `200 OK` (`UserDto`)
+- **Catatan**:
   - Response error (semua status error mengembalikan JSON): `{"errorCode": "..."}`
   - CORS dikontrol melalui environment variable `CORS_ALLOWED_ORIGINS` (daftar origin dipisahkan koma di `.env`)
+  - `JWT_SECRET` wajib diisi minimal 32 karakter (lihat `.env.example`)
 - **Swagger UI**: `http://localhost:8080/swagger-ui`
 - **OpenAPI JSON**: `http://localhost:8080/api-docs/openapi.json`
 - **Health Check**: `http://localhost:8080/health`
