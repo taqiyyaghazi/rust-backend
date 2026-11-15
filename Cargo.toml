@@ -4,6 +4,12 @@ members = [
     "crates/shared_kernel",
     "crates/identity",
     "bins/api",
+    "bins/worker",
+]
+default-members = [
+    "crates/shared_kernel",
+    "crates/identity",
+    "bins/api",
 ]
 
 [workspace.package]
@@ -47,7 +53,7 @@ chrono = { version = "0.4", features = ["serde"] }
 # Error Handling
 thiserror = "1.0"
 anyhow = "1.0"
-argon2 = "0.5"
+argon2 = { version = "0.5", features = ["std"] }
 
 # Observability & Config
 tracing = "0.1"
@@ -62,3 +68,7 @@ utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
 jsonwebtoken = "9"
 sha2 = "0.10"
 hex = "0.4"
+getrandom = { version = "0.2", features = ["js"] }
+
+# Cloudflare Workers (Wasm)
+worker = { version = "0.7", features = ["http", "d1"] }

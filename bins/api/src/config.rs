@@ -98,6 +98,8 @@ mod tests {
 
     #[test]
     fn validate_accepts_32_byte_jwt_secret() {
-        assert!(sample_config("0123456789abcdef0123456789abcdef").validate().is_ok());
+        assert!(sample_config("0123456789abcdef0123456789abcdef")
+            .validate()
+            .is_ok());
     }
 }

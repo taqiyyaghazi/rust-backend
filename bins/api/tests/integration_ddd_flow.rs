@@ -97,10 +97,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .await
         .unwrap();
     assert_eq!(me_unauth.status(), StatusCode::UNAUTHORIZED);
-    let me_unauth_body: serde_json::Value = serde_json::from_slice(
-        &me_unauth.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let me_unauth_body: serde_json::Value =
+        serde_json::from_slice(&me_unauth.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(me_unauth_body["errorCode"], "UNAUTHORIZED");
 
     let me_bad_token = app
@@ -116,10 +114,9 @@ async fn register_endpoint_and_removed_routes_flow() {
         .await
         .unwrap();
     assert_eq!(me_bad_token.status(), StatusCode::UNAUTHORIZED);
-    let me_bad_body: serde_json::Value = serde_json::from_slice(
-        &me_bad_token.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let me_bad_body: serde_json::Value =
+        serde_json::from_slice(&me_bad_token.into_body().collect().await.unwrap().to_bytes())
+            .unwrap();
     assert_eq!(me_bad_body["errorCode"], "INVALID_TOKEN");
 
     // 2. Duplicate email -> 409 Conflict
@@ -176,7 +173,12 @@ async fn register_endpoint_and_removed_routes_flow() {
     let old_users_res = app.clone().oneshot(old_users_req).await.unwrap();
     assert_eq!(old_users_res.status(), StatusCode::NOT_FOUND);
     let old_users_body: serde_json::Value = serde_json::from_slice(
-        &old_users_res.into_body().collect().await.unwrap().to_bytes(),
+        &old_users_res
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
     )
     .unwrap();
     assert_eq!(old_users_body["errorCode"], "NOT_FOUND");
@@ -251,10 +253,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .unwrap();
     let no_ct_res = app.clone().oneshot(no_ct_req).await.unwrap();
     assert_eq!(no_ct_res.status(), StatusCode::BAD_REQUEST);
-    let no_ct_body: serde_json::Value = serde_json::from_slice(
-        &no_ct_res.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let no_ct_body: serde_json::Value =
+        serde_json::from_slice(&no_ct_res.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(no_ct_body["errorCode"], "INVALID_CONTENT_TYPE");
 
     let null_json_req = Request::builder()
@@ -266,7 +266,12 @@ async fn register_endpoint_and_removed_routes_flow() {
     let null_json_res = app.clone().oneshot(null_json_req).await.unwrap();
     assert_eq!(null_json_res.status(), StatusCode::BAD_REQUEST);
     let null_json_body: serde_json::Value = serde_json::from_slice(
-        &null_json_res.into_body().collect().await.unwrap().to_bytes(),
+        &null_json_res
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
     )
     .unwrap();
     assert_eq!(null_json_body["errorCode"], "INVALID_JSON_PAYLOAD");
@@ -281,7 +286,12 @@ async fn register_endpoint_and_removed_routes_flow() {
     let empty_obj_res = app.clone().oneshot(empty_obj_req).await.unwrap();
     assert_eq!(empty_obj_res.status(), StatusCode::BAD_REQUEST);
     let empty_obj_body: serde_json::Value = serde_json::from_slice(
-        &empty_obj_res.into_body().collect().await.unwrap().to_bytes(),
+        &empty_obj_res
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
     )
     .unwrap();
     assert_eq!(empty_obj_body["errorCode"], "MISSING_REQUIRED_FIELDS");
@@ -297,7 +307,12 @@ async fn register_endpoint_and_removed_routes_flow() {
     let missing_name_res = app.clone().oneshot(missing_name_req).await.unwrap();
     assert_eq!(missing_name_res.status(), StatusCode::BAD_REQUEST);
     let missing_name_body: serde_json::Value = serde_json::from_slice(
-        &missing_name_res.into_body().collect().await.unwrap().to_bytes(),
+        &missing_name_res
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
     )
     .unwrap();
     assert_eq!(missing_name_body["errorCode"], "MISSING_FULL_NAME");
@@ -318,10 +333,9 @@ async fn register_endpoint_and_removed_routes_flow() {
         .unwrap();
     let short_pw_res = app.clone().oneshot(short_pw_req).await.unwrap();
     assert_eq!(short_pw_res.status(), StatusCode::BAD_REQUEST);
-    let short_pw_body: serde_json::Value = serde_json::from_slice(
-        &short_pw_res.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let short_pw_body: serde_json::Value =
+        serde_json::from_slice(&short_pw_res.into_body().collect().await.unwrap().to_bytes())
+            .unwrap();
     assert_eq!(short_pw_body["errorCode"], "INVALID_PASSWORD");
 
     // 11. Wrong method -> 405 METHOD_NOT_ALLOWED JSON
@@ -332,10 +346,9 @@ async fn register_endpoint_and_removed_routes_flow() {
         .unwrap();
     let method_res = app.clone().oneshot(method_req).await.unwrap();
     assert_eq!(method_res.status(), StatusCode::METHOD_NOT_ALLOWED);
-    let method_body: serde_json::Value = serde_json::from_slice(
-        &method_res.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let method_body: serde_json::Value =
+        serde_json::from_slice(&method_res.into_body().collect().await.unwrap().to_bytes())
+            .unwrap();
     assert_eq!(method_body["errorCode"], "METHOD_NOT_ALLOWED");
 
     // 12. Oversized body (> 16 KB) -> 413 PAYLOAD_TOO_LARGE JSON
@@ -351,10 +364,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .unwrap();
     let large_res = app.clone().oneshot(large_req).await.unwrap();
     assert_eq!(large_res.status(), StatusCode::PAYLOAD_TOO_LARGE);
-    let large_json: serde_json::Value = serde_json::from_slice(
-        &large_res.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let large_json: serde_json::Value =
+        serde_json::from_slice(&large_res.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(large_json["errorCode"], "PAYLOAD_TOO_LARGE");
 
     // 13. Login, Refresh Rotation, and Idempotent Logout lifecycle
@@ -377,10 +388,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .await
         .unwrap();
     assert_eq!(login_res.status(), StatusCode::OK);
-    let login_auth: AuthResponseDto = serde_json::from_slice(
-        &login_res.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let login_auth: AuthResponseDto =
+        serde_json::from_slice(&login_res.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(login_auth.user.email, unique_email);
 
     let bad_login = app
@@ -402,10 +411,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .await
         .unwrap();
     assert_eq!(bad_login.status(), StatusCode::UNAUTHORIZED);
-    let bad_login_body: serde_json::Value = serde_json::from_slice(
-        &bad_login.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let bad_login_body: serde_json::Value =
+        serde_json::from_slice(&bad_login.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(bad_login_body["errorCode"], "INVALID_CREDENTIALS");
 
     // Empty/whitespace refreshToken -> 400 MISSING_REFRESH_TOKEN
@@ -423,7 +430,12 @@ async fn register_endpoint_and_removed_routes_flow() {
         .unwrap();
     assert_eq!(empty_refresh.status(), StatusCode::BAD_REQUEST);
     let empty_refresh_body: serde_json::Value = serde_json::from_slice(
-        &empty_refresh.into_body().collect().await.unwrap().to_bytes(),
+        &empty_refresh
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
     )
     .unwrap();
     assert_eq!(empty_refresh_body["errorCode"], "MISSING_REFRESH_TOKEN");
@@ -444,10 +456,9 @@ async fn register_endpoint_and_removed_routes_flow() {
         .await
         .unwrap();
     assert_eq!(refresh_res.status(), StatusCode::OK);
-    let rotated: TokenPairDto = serde_json::from_slice(
-        &refresh_res.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let rotated: TokenPairDto =
+        serde_json::from_slice(&refresh_res.into_body().collect().await.unwrap().to_bytes())
+            .unwrap();
     assert_ne!(rotated.refresh_token, login_auth.refresh_token);
 
     let reuse_res = app
@@ -465,10 +476,8 @@ async fn register_endpoint_and_removed_routes_flow() {
         .await
         .unwrap();
     assert_eq!(reuse_res.status(), StatusCode::UNAUTHORIZED);
-    let reuse_body: serde_json::Value = serde_json::from_slice(
-        &reuse_res.into_body().collect().await.unwrap().to_bytes(),
-    )
-    .unwrap();
+    let reuse_body: serde_json::Value =
+        serde_json::from_slice(&reuse_res.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(reuse_body["errorCode"], "INVALID_REFRESH_TOKEN");
 
     // Logout idempotently revokes the rotated refreshToken

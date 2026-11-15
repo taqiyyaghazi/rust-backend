@@ -75,7 +75,8 @@ pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
         .connect(&config.database_url)
         .await?;
 
-    let user_repository: Arc<dyn UserRepository> = Arc::new(PostgresUserRepository::new(pool.clone()));
+    let user_repository: Arc<dyn UserRepository> =
+        Arc::new(PostgresUserRepository::new(pool.clone()));
     let refresh_token_repository: Arc<dyn RefreshTokenRepository> =
         Arc::new(PostgresRefreshTokenRepository::new(pool.clone()));
     let jwt_config = JwtAuthConfig::new(config.jwt_secret.clone(), config.jwt_access_ttl_secs);
@@ -103,9 +104,8 @@ pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
         .merge(identity_router(identity_state));
 
     if config.enable_swagger_ui {
-        app = app.merge(
-            SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()),
-        );
+        app = app
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
     }
 
     let app = app

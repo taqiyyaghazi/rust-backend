@@ -1,8 +1,4 @@
-use crate::domain::{
-    entities::RefreshToken,
-    repositories::RepositoryError,
-    value_objects::UserId,
-};
+use crate::domain::{entities::RefreshToken, repositories::RepositoryError, value_objects::UserId};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 

@@ -2,23 +2,11 @@ use crate::{
     application::{
         dto::{AuthResponseDto, UserDto},
         errors::IdentityApplicationError,
-        services::TokenService,
+        services::{password_hasher, TokenService},
     },
-    domain::{
-        errors::IdentityDomainError,
-        repositories::UserRepository,
-        value_objects::Email,
-    },
-};
-use argon2::{
-    password_hash::{PasswordHash, PasswordVerifier},
-    Argon2,
+    domain::{errors::IdentityDomainError, repositories::UserRepository, value_objects::Email},
 };
 use std::sync::Arc;
-
-// Valid Argon2id PHC hash used when an email is not found so timing matches a real verification.
-const DUMMY_PASSWORD_HASH: &str =
-    "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 #[derive(Clone)]
 pub struct LoginUserCommand {
@@ -56,35 +44,10 @@ impl LoginUserHandler {
         }
 
         let user_opt = self.user_repository.find_by_email(&email).await?;
-        let target_hash = user_opt
-            .as_ref()
-            .map(|u| u.password_hash().to_string())
-            .unwrap_or_else(|| DUMMY_PASSWORD_HASH.to_string());
-
-        let _permit = self
-            .hash_semaphore
-            .acquire()
-            .await
-            .map_err(|_| IdentityApplicationError::PasswordHashing)?;
-        let raw_password = cmd.password;
-        let has_user = user_opt.is_some();
-        let is_valid = tokio::task::spawn_blocking(move || {
-            let parsed = match PasswordHash::new(&target_hash) {
-                Ok(parsed) => parsed,
-                Err(_) => {
-                    if has_user {
-                        tracing::error!("Corrupted password hash in database");
-                    }
-                    return false;
-                }
-            };
-            Argon2::default()
-                .verify_password(raw_password.as_bytes(), &parsed)
-                .is_ok()
-        })
-        .await
-        .map_err(|_| IdentityApplicationError::PasswordHashing)?;
-        drop(_permit);
+        let target_hash = user_opt.as_ref().map(|u| u.password_hash().to_string());
+        let is_valid =
+            password_hasher::verify_password(cmd.password, target_hash, &self.hash_semaphore)
+                .await?;
 
         let Some(user) = user_opt else {
             return Err(IdentityApplicationError::InvalidCredentials);

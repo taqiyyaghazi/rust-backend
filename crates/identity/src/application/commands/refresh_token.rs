@@ -1,7 +1,5 @@
 use crate::{
-    application::{
-        dto::TokenPairDto, errors::IdentityApplicationError, services::TokenService,
-    },
+    application::{dto::TokenPairDto, errors::IdentityApplicationError, services::TokenService},
     domain::repositories::UserRepository,
 };
 use std::sync::Arc;
@@ -18,10 +16,7 @@ pub struct RefreshTokenHandler {
 }
 
 impl RefreshTokenHandler {
-    pub fn new(
-        user_repository: Arc<dyn UserRepository>,
-        token_service: Arc<TokenService>,
-    ) -> Self {
+    pub fn new(user_repository: Arc<dyn UserRepository>, token_service: Arc<TokenService>) -> Self {
         Self {
             user_repository,
             token_service,

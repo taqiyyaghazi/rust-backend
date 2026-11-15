@@ -2,7 +2,7 @@ use crate::{
     application::{
         dto::{AuthResponseDto, UserDto},
         errors::IdentityApplicationError,
-        services::TokenService,
+        services::{password_hasher, TokenService},
     },
     domain::{
         entities::User,
@@ -10,10 +10,6 @@ use crate::{
         repositories::{RepositoryError, UserRepository},
         value_objects::{Email, FullName},
     },
-};
-use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
-    Argon2,
 };
 use std::sync::Arc;
 use tracing::info;
@@ -62,22 +58,8 @@ impl RegisterUserHandler {
             ));
         }
 
-        let _permit = self
-            .hash_semaphore
-            .acquire()
-            .await
-            .map_err(|_| IdentityApplicationError::PasswordHashing)?;
-        let raw_password = cmd.password;
-        let password_hash = tokio::task::spawn_blocking(move || {
-            let salt = SaltString::generate(&mut OsRng);
-            Argon2::default()
-                .hash_password(raw_password.as_bytes(), &salt)
-                .map(|h| h.to_string())
-        })
-        .await
-        .map_err(|_| IdentityApplicationError::PasswordHashing)?
-        .map_err(|_| IdentityApplicationError::PasswordHashing)?;
-        drop(_permit);
+        let password_hash =
+            password_hasher::hash_password(cmd.password, &self.hash_semaphore).await?;
 
         let user = User::register(email, full_name, password_hash);
         if let Err(err) = self.user_repository.save(&user).await {

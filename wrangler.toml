@@ -1,0 +1,40 @@
+name = "rust-backend"
+main = "bins/worker/build/worker/shim.mjs"
+compatibility_date = "2026-01-01"
+
+[build]
+command = "cargo install -q worker-build && worker-build --release"
+cwd = "bins/worker"
+
+[vars]
+JWT_ACCESS_TTL_SECS = "900"
+REFRESH_TOKEN_TTL_DAYS = "30"
+CORS_ALLOWED_ORIGINS = "http://localhost:3000"
+
+[env.staging]
+name = "rust-backend-staging"
+
+[env.staging.vars]
+JWT_ACCESS_TTL_SECS = "900"
+REFRESH_TOKEN_TTL_DAYS = "30"
+CORS_ALLOWED_ORIGINS = "http://localhost:3000"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "rust-backend-db-staging"
+database_id = "REPLACE_WITH_STAGING_D1_DATABASE_ID"
+migrations_dir = "migrations_d1"
+
+[env.production]
+name = "rust-backend-production"
+
+[env.production.vars]
+JWT_ACCESS_TTL_SECS = "900"
+REFRESH_TOKEN_TTL_DAYS = "30"
+CORS_ALLOWED_ORIGINS = "https://your-production-frontend.example.com"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "rust-backend-db-prod"
+database_id = "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID"
+migrations_dir = "migrations_d1"

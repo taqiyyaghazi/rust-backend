@@ -51,9 +51,7 @@ mod tests {
 
         async fn exists_by_email(&self, email: &Email) -> Result<bool, RepositoryError> {
             let guard = self.users.lock().await;
-            Ok(guard
-                .values()
-                .any(|u| u.email().as_str() == email.as_str()))
+            Ok(guard.values().any(|u| u.email().as_str() == email.as_str()))
         }
 
         async fn find_by_email(&self, email: &Email) -> Result<Option<User>, RepositoryError> {
@@ -141,11 +139,7 @@ mod tests {
         let user_repo = Arc::new(InMemoryUserRepo::default());
         let token_repo = Arc::new(InMemoryRefreshTokenRepo::default());
         let jwt_config = test_jwt_config();
-        let token_service = Arc::new(TokenService::new(
-            token_repo.clone(),
-            jwt_config.clone(),
-            7,
-        ));
+        let token_service = Arc::new(TokenService::new(token_repo.clone(), jwt_config.clone(), 7));
         let handler = RegisterUserHandler::new(user_repo, token_service, test_semaphore());
 
         let res = handler
@@ -176,16 +170,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn login_succeeds_for_valid_credentials_and_rejects_wrong_password_unknown_email_and_inactive_user() {
+    async fn login_succeeds_for_valid_credentials_and_rejects_wrong_password_unknown_email_and_inactive_user(
+    ) {
         let user_repo = Arc::new(InMemoryUserRepo::default());
         let token_repo = Arc::new(InMemoryRefreshTokenRepo::default());
-        let token_service = Arc::new(TokenService::new(
-            token_repo,
-            test_jwt_config(),
-            7,
-        ));
+        let token_service = Arc::new(TokenService::new(token_repo, test_jwt_config(), 7));
         let sem = test_semaphore();
-        let register = RegisterUserHandler::new(user_repo.clone(), token_service.clone(), sem.clone());
+        let register =
+            RegisterUserHandler::new(user_repo.clone(), token_service.clone(), sem.clone());
         let login = LoginUserHandler::new(user_repo.clone(), token_service, sem);
 
         register
@@ -255,11 +247,7 @@ mod tests {
     async fn refresh_rotates_token_and_rejects_reuse_and_inactive_user() {
         let user_repo = Arc::new(InMemoryUserRepo::default());
         let token_repo = Arc::new(InMemoryRefreshTokenRepo::default());
-        let token_service = Arc::new(TokenService::new(
-            token_repo.clone(),
-            test_jwt_config(),
-            7,
-        ));
+        let token_service = Arc::new(TokenService::new(token_repo.clone(), test_jwt_config(), 7));
         let register =
             RegisterUserHandler::new(user_repo.clone(), token_service.clone(), test_semaphore());
         let refresh = RefreshTokenHandler::new(user_repo.clone(), token_service.clone());
@@ -319,11 +307,7 @@ mod tests {
     async fn logout_revokes_refresh_token_idempotently() {
         let user_repo = Arc::new(InMemoryUserRepo::default());
         let token_repo = Arc::new(InMemoryRefreshTokenRepo::default());
-        let token_service = Arc::new(TokenService::new(
-            token_repo.clone(),
-            test_jwt_config(),
-            7,
-        ));
+        let token_service = Arc::new(TokenService::new(token_repo.clone(), test_jwt_config(), 7));
         let register = RegisterUserHandler::new(user_repo, token_service.clone(), test_semaphore());
         let logout = LogoutUserHandler::new(token_service.clone());
 
@@ -358,13 +342,8 @@ mod tests {
     async fn get_current_user_returns_active_user_and_rejects_missing_or_inactive() {
         let user_repo = Arc::new(InMemoryUserRepo::default());
         let token_repo = Arc::new(InMemoryRefreshTokenRepo::default());
-        let token_service = Arc::new(TokenService::new(
-            token_repo,
-            test_jwt_config(),
-            7,
-        ));
-        let register =
-            RegisterUserHandler::new(user_repo.clone(), token_service, test_semaphore());
+        let token_service = Arc::new(TokenService::new(token_repo, test_jwt_config(), 7));
+        let register = RegisterUserHandler::new(user_repo.clone(), token_service, test_semaphore());
         let me = GetCurrentUserHandler::new(user_repo.clone());
 
         let reg = register
