@@ -1,7 +1,7 @@
 use crate::{config::AppConfig, openapi::ApiDoc};
 use axum::{
-    extract::{DefaultBodyLimit, Request},
-    http::{header, HeaderValue, Method},
+    extract::{DefaultBodyLimit, Request, State},
+    http::{header, HeaderValue, Method, StatusCode},
     middleware::{self, Next},
     response::Response,
     routing::get,
@@ -14,7 +14,7 @@ use identity::{
 };
 use serde_json::{json, Value};
 use shared_kernel::presentation::ApiError;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{
     sync::Arc,
     time::{Duration, Instant},
@@ -42,13 +42,24 @@ async fn log_request(req: Request, next: Next) -> Response {
     res
 }
 
-async fn health_check_handler() -> Json<Value> {
-    Json(json!({
-        "status": "ok",
-        "architecture": "ddd-modular-monolith",
-        "bounded_contexts": ["identity"],
-        "storage": "postgres"
-    }))
+async fn health_check_handler(State(pool): State<PgPool>) -> (StatusCode, Json<Value>) {
+    let (status_code, status) = match sqlx::query("SELECT 1").execute(&pool).await {
+        Ok(_) => (StatusCode::OK, "ok"),
+        Err(err) => {
+            tracing::error!(error = %err, "Database health check failed");
+            (StatusCode::SERVICE_UNAVAILABLE, "unavailable")
+        }
+    };
+
+    (
+        status_code,
+        Json(json!({
+            "status": status,
+            "architecture": "ddd-modular-monolith",
+            "bounded_contexts": ["identity"],
+            "storage": "postgres"
+        })),
+    )
 }
 
 /// Builds the complete Modular Monolith application router with PostgreSQL storage.
@@ -63,7 +74,7 @@ pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
         .connect(&config.database_url)
         .await?;
 
-    let user_repository: Arc<dyn UserRepository> = Arc::new(PostgresUserRepository::new(pool));
+    let user_repository: Arc<dyn UserRepository> = Arc::new(PostgresUserRepository::new(pool.clone()));
 
     let identity_state = IdentityHttpState::new(user_repository);
 
@@ -78,10 +89,17 @@ pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
 
-    let app = Router::new()
-        .route("/health", get(health_check_handler))
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .merge(identity_router(identity_state))
+    let mut app = Router::new()
+        .route("/health", get(health_check_handler).with_state(pool))
+        .merge(identity_router(identity_state));
+
+    if config.enable_swagger_ui {
+        app = app.merge(
+            SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()),
+        );
+    }
+
+    let app = app
         .fallback(|| async { ApiError::not_found() })
         .method_not_allowed_fallback(|| async { ApiError::method_not_allowed() })
         .layer(DefaultBodyLimit::max(16 * 1024))

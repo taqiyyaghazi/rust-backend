@@ -6,6 +6,7 @@ pub struct AppConfig {
     pub port: u16,
     pub database_url: String,
     pub cors_allowed_origins: Vec<String>,
+    pub enable_swagger_ui: bool,
 }
 
 impl AppConfig {
@@ -30,11 +31,16 @@ impl AppConfig {
             .map(ToString::to_string)
             .collect();
 
+        let enable_swagger_ui = env::var("ENABLE_SWAGGER_UI")
+            .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+            .unwrap_or(false);
+
         Self {
             host,
             port,
             database_url,
             cors_allowed_origins,
+            enable_swagger_ui,
         }
     }
 
