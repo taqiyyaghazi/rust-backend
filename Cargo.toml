@@ -4,6 +4,12 @@ members = [
     "crates/shared_kernel",
     "crates/identity",
     "bins/api",
+    "bins/worker",
+]
+default-members = [
+    "crates/shared_kernel",
+    "crates/identity",
+    "bins/api",
 ]
 
 [workspace.package]

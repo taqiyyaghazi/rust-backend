@@ -1505,6 +1505,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rust_backend_worker"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "http",
+ "identity",
+ "serde",
+ "serde_json",
+ "shared_kernel",
+ "tower-http",
+ "tower-service",
+ "utoipa",
+ "worker",
+]
+
+[[package]]
 name = "rustls"
 version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"

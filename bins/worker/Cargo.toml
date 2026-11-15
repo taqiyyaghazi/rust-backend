@@ -1,0 +1,23 @@
+[package]
+name = "rust_backend_worker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+identity = { path = "../../crates/identity", default-features = false, features = ["d1"] }
+shared_kernel.workspace = true
+
+axum = { version = "0.8", default-features = false, features = ["json", "macros"] }
+http = "1"
+serde.workspace = true
+serde_json.workspace = true
+tower-http.workspace = true
+tower-service = "0.3"
+utoipa.workspace = true
+worker.workspace = true
