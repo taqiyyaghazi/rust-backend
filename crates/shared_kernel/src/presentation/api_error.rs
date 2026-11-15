@@ -29,6 +29,13 @@ impl ApiError {
         }
     }
 
+    pub fn unauthorized(error_code: &'static str) -> Self {
+        Self {
+            status: StatusCode::UNAUTHORIZED,
+            error_code,
+        }
+    }
+
     pub fn conflict(error_code: &'static str) -> Self {
         Self {
             status: StatusCode::CONFLICT,

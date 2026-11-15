@@ -5,15 +5,15 @@ use axum::{
     middleware::{self, Next},
     response::Response,
     routing::get,
-    Json, Router,
+    Extension, Json, Router,
 };
 use identity::{
-    domain::repositories::UserRepository,
-    infrastructure::PostgresUserRepository,
+    domain::repositories::{RefreshTokenRepository, UserRepository},
+    infrastructure::{PostgresRefreshTokenRepository, PostgresUserRepository},
     presentation::{identity_router, IdentityHttpState},
 };
 use serde_json::{json, Value};
-use shared_kernel::presentation::ApiError;
+use shared_kernel::presentation::{ApiError, JwtAuthConfig};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{
     sync::Arc,
@@ -67,6 +67,7 @@ async fn health_check_handler(State(pool): State<PgPool>) -> (StatusCode, Json<V
 /// NOTE: Database migrations are NOT executed here. Migrations must be run separately
 /// via `cargo run --bin migrate` (or `./scripts/migrate.sh`) prior to starting the API server.
 pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
+    config.validate()?;
     info!("Connecting to PostgreSQL database...");
     let pool = PgPoolOptions::new()
         .max_connections(10)
@@ -75,8 +76,16 @@ pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
         .await?;
 
     let user_repository: Arc<dyn UserRepository> = Arc::new(PostgresUserRepository::new(pool.clone()));
+    let refresh_token_repository: Arc<dyn RefreshTokenRepository> =
+        Arc::new(PostgresRefreshTokenRepository::new(pool.clone()));
+    let jwt_config = JwtAuthConfig::new(config.jwt_secret.clone(), config.jwt_access_ttl_secs);
 
-    let identity_state = IdentityHttpState::new(user_repository);
+    let identity_state = IdentityHttpState::new(
+        user_repository,
+        refresh_token_repository,
+        jwt_config.clone(),
+        config.refresh_token_ttl_days,
+    );
 
     let allowed_origins: Vec<HeaderValue> = config
         .cors_allowed_origins
@@ -102,6 +111,7 @@ pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
     let app = app
         .fallback(|| async { ApiError::not_found() })
         .method_not_allowed_fallback(|| async { ApiError::method_not_allowed() })
+        .layer(Extension(jwt_config))
         .layer(DefaultBodyLimit::max(16 * 1024))
         .layer(cors)
         .layer(middleware::from_fn(log_request));

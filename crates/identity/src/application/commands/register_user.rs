@@ -1,5 +1,9 @@
 use crate::{
-    application::{dto::UserDto, errors::IdentityApplicationError},
+    application::{
+        dto::{AuthResponseDto, UserDto},
+        errors::IdentityApplicationError,
+        services::TokenService,
+    },
     domain::{
         entities::User,
         errors::IdentityDomainError,
@@ -25,24 +29,27 @@ pub struct RegisterUserCommand {
 #[derive(Clone)]
 pub struct RegisterUserHandler {
     user_repository: Arc<dyn UserRepository>,
+    token_service: Arc<TokenService>,
     hash_semaphore: Arc<tokio::sync::Semaphore>,
 }
 
 impl RegisterUserHandler {
-    pub fn new(user_repository: Arc<dyn UserRepository>) -> Self {
-        let max_concurrent_hashes = std::thread::available_parallelism()
-            .map(|n| n.get())
-            .unwrap_or(4);
+    pub fn new(
+        user_repository: Arc<dyn UserRepository>,
+        token_service: Arc<TokenService>,
+        hash_semaphore: Arc<tokio::sync::Semaphore>,
+    ) -> Self {
         Self {
             user_repository,
-            hash_semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent_hashes)),
+            token_service,
+            hash_semaphore,
         }
     }
 
     pub async fn handle(
         &self,
         cmd: RegisterUserCommand,
-    ) -> Result<UserDto, IdentityApplicationError> {
+    ) -> Result<AuthResponseDto, IdentityApplicationError> {
         let email = Email::parse(cmd.email)?;
         let full_name = FullName::parse(cmd.full_name)?;
         if !(8..=128).contains(&cmd.password.chars().count()) {
@@ -84,6 +91,13 @@ impl RegisterUserHandler {
 
         info!(user_id = %user.id(), "User registered");
 
-        Ok(UserDto::from(&user))
+        let tokens = self.token_service.issue_token_pair(user.id()).await?;
+
+        Ok(AuthResponseDto {
+            user: UserDto::from(&user),
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_in: tokens.expires_in,
+        })
     }
 }

@@ -30,6 +30,26 @@ impl User {
         }
     }
 
+    pub fn reconstitute(
+        id: UserId,
+        email: Email,
+        full_name: FullName,
+        password_hash: String,
+        is_active: bool,
+        created_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            id,
+            email,
+            full_name,
+            password_hash,
+            is_active,
+            created_at,
+            updated_at,
+        }
+    }
+
     pub fn id(&self) -> UserId {
         self.id
     }
@@ -70,5 +90,22 @@ mod tests {
         let user = User::register(email, name, "hashed_pw");
 
         assert!(user.is_active());
+    }
+
+    #[test]
+    fn user_reconstitute_preserves_fields() {
+        let id = UserId::new();
+        let email = Email::parse("siti@example.com").unwrap();
+        let name = FullName::parse("Siti Aminah").unwrap();
+        let now = Utc::now();
+        let user = User::reconstitute(id, email.clone(), name.clone(), "hash".into(), false, now, now);
+
+        assert_eq!(user.id(), id);
+        assert_eq!(user.email().as_str(), email.as_str());
+        assert_eq!(user.full_name().as_str(), name.as_str());
+        assert_eq!(user.password_hash(), "hash");
+        assert!(!user.is_active());
+        assert_eq!(user.created_at(), now);
+        assert_eq!(user.updated_at(), now);
     }
 }

@@ -1,3 +1,3 @@
 pub mod persistence;
 
-pub use persistence::PostgresUserRepository;
+pub use persistence::{PostgresRefreshTokenRepository, PostgresUserRepository};
