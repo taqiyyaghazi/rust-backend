@@ -67,6 +67,7 @@ async fn health_check_handler(State(pool): State<PgPool>) -> (StatusCode, Json<V
 /// NOTE: Database migrations are NOT executed here. Migrations must be run separately
 /// via `cargo run --bin migrate` (or `./scripts/migrate.sh`) prior to starting the API server.
 pub async fn build_app(config: &AppConfig) -> anyhow::Result<Router> {
+    config.validate()?;
     info!("Connecting to PostgreSQL database...");
     let pool = PgPoolOptions::new()
         .max_connections(10)

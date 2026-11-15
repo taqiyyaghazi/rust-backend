@@ -38,8 +38,7 @@ impl AppConfig {
             .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
             .unwrap_or(false);
 
-        let jwt_secret = env::var("JWT_SECRET")
-            .unwrap_or_else(|_| "dev-only-jwt-secret-change-in-production-32b".to_string());
+        let jwt_secret = env::var("JWT_SECRET").unwrap_or_default();
         let jwt_access_ttl_secs = env::var("JWT_ACCESS_TTL_SECS")
             .ok()
             .and_then(|v| v.parse::<u64>().ok())
@@ -63,5 +62,42 @@ impl AppConfig {
 
     pub fn bind_address(&self) -> String {
         format!("{}:{}", self.host, self.port)
+    }
+
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.jwt_secret.trim().len() < 32 {
+            anyhow::bail!("JWT_SECRET must be set and at least 32 characters long");
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AppConfig;
+
+    fn sample_config(secret: &str) -> AppConfig {
+        AppConfig {
+            host: "127.0.0.1".to_string(),
+            port: 8080,
+            database_url: "postgres://localhost/db".to_string(),
+            cors_allowed_origins: vec![],
+            enable_swagger_ui: false,
+            jwt_secret: secret.to_string(),
+            jwt_access_ttl_secs: 900,
+            refresh_token_ttl_days: 7,
+        }
+    }
+
+    #[test]
+    fn validate_rejects_empty_or_short_jwt_secret() {
+        assert!(sample_config("").validate().is_err());
+        assert!(sample_config("   ").validate().is_err());
+        assert!(sample_config("short-secret").validate().is_err());
+    }
+
+    #[test]
+    fn validate_accepts_32_byte_jwt_secret() {
+        assert!(sample_config("0123456789abcdef0123456789abcdef").validate().is_ok());
     }
 }

@@ -74,8 +74,9 @@ where
             .ok_or_else(|| ApiError::unauthorized("UNAUTHORIZED"))?;
 
         let token = auth_header
-            .strip_prefix("Bearer ")
-            .map(str::trim)
+            .split_once(' ')
+            .filter(|(scheme, _)| scheme.eq_ignore_ascii_case("bearer"))
+            .map(|(_, tok)| tok.trim())
             .filter(|t| !t.is_empty())
             .ok_or_else(|| ApiError::unauthorized("UNAUTHORIZED"))?;
 
@@ -200,6 +201,18 @@ mod tests {
         let token = issue_access_token(user_id, &config).unwrap();
 
         let extracted = extract_with_header(Some(&format!("Bearer {token}")), config)
+            .await
+            .unwrap();
+        assert_eq!(extracted.user_id, user_id);
+    }
+
+    #[tokio::test]
+    async fn lowercase_bearer_header_extracts_user_id() {
+        let config = test_config();
+        let user_id = Uuid::new_v4();
+        let token = issue_access_token(user_id, &config).unwrap();
+
+        let extracted = extract_with_header(Some(&format!("bearer {token}")), config)
             .await
             .unwrap();
         assert_eq!(extracted.user_id, user_id);
