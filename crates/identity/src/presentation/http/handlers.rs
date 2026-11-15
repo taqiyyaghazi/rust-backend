@@ -1,8 +1,6 @@
 use crate::{
     application::{
-        commands::{
-            LoginUserCommand, LogoutUserCommand, RefreshTokenCommand, RegisterUserCommand,
-        },
+        commands::{LoginUserCommand, LogoutUserCommand, RefreshTokenCommand, RegisterUserCommand},
         dto::{AuthResponseDto, TokenPairDto, UserDto},
         errors::IdentityApplicationError,
         queries::GetCurrentUserQuery,
@@ -27,7 +25,9 @@ fn map_identity_error(err: IdentityApplicationError) -> ApiError {
             IdentityDomainError::InvalidFullName => ApiError::bad_request("INVALID_FULL_NAME"),
             IdentityDomainError::InvalidPassword => ApiError::bad_request("INVALID_PASSWORD"),
         },
-        IdentityApplicationError::EmailAlreadyExists(_) => ApiError::conflict("EMAIL_ALREADY_EXISTS"),
+        IdentityApplicationError::EmailAlreadyExists(_) => {
+            ApiError::conflict("EMAIL_ALREADY_EXISTS")
+        }
         IdentityApplicationError::InvalidCredentials => {
             ApiError::unauthorized("INVALID_CREDENTIALS")
         }

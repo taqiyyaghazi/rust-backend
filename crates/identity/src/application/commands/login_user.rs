@@ -4,11 +4,7 @@ use crate::{
         errors::IdentityApplicationError,
         services::{password_hasher, TokenService},
     },
-    domain::{
-        errors::IdentityDomainError,
-        repositories::UserRepository,
-        value_objects::Email,
-    },
+    domain::{errors::IdentityDomainError, repositories::UserRepository, value_objects::Email},
 };
 use std::sync::Arc;
 

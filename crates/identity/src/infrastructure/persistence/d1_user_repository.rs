@@ -146,9 +146,8 @@ impl UserRepository for D1UserRepository {
         let email_str = email.as_str().to_string();
 
         SendFuture::new(async move {
-            let stmt = db
-                .0
-                .prepare("SELECT 1 as found FROM users WHERE email = ?1 LIMIT 1");
+            let stmt =
+                db.0.prepare("SELECT 1 as found FROM users WHERE email = ?1 LIMIT 1");
             let bound = stmt
                 .bind(&[JsValue::from_str(&email_str)])
                 .map_err(|e| RepositoryError::Storage(e.to_string()))?;
@@ -245,7 +244,10 @@ mod tests {
             "updated_at": "2026-11-15T12:00:00Z"
         });
         let row: D1UserRow = serde_json::from_value(json).expect("deserialize D1UserRow");
-        assert!(matches!(row.into_domain(), Err(RepositoryError::Storage(_))));
+        assert!(matches!(
+            row.into_domain(),
+            Err(RepositoryError::Storage(_))
+        ));
     }
 
     #[test]

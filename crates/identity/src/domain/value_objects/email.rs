@@ -22,7 +22,9 @@ impl Email {
             || !domain.contains('.')
             || local.split('.').any(str::is_empty)
             || domain.split('.').any(str::is_empty)
-            || normalized.chars().any(|c| c.is_whitespace() || c.is_control())
+            || normalized
+                .chars()
+                .any(|c| c.is_whitespace() || c.is_control())
         {
             return Err(IdentityDomainError::InvalidEmail(normalized));
         }

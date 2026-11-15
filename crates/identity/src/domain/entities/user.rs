@@ -98,7 +98,15 @@ mod tests {
         let email = Email::parse("siti@example.com").unwrap();
         let name = FullName::parse("Siti Aminah").unwrap();
         let now = Utc::now();
-        let user = User::reconstitute(id, email.clone(), name.clone(), "hash".into(), false, now, now);
+        let user = User::reconstitute(
+            id,
+            email.clone(),
+            name.clone(),
+            "hash".into(),
+            false,
+            now,
+            now,
+        );
 
         assert_eq!(user.id(), id);
         assert_eq!(user.email().as_str(), email.as_str());

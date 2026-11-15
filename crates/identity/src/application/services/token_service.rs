@@ -1,10 +1,6 @@
 use crate::{
     application::{dto::TokenPairDto, errors::IdentityApplicationError},
-    domain::{
-        entities::RefreshToken,
-        repositories::RefreshTokenRepository,
-        value_objects::UserId,
-    },
+    domain::{entities::RefreshToken, repositories::RefreshTokenRepository, value_objects::UserId},
 };
 use argon2::password_hash::rand_core::{OsRng, RngCore};
 use chrono::{Duration, Utc};

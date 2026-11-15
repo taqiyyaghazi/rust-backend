@@ -115,9 +115,13 @@ mod tests {
             .expect("hash should succeed");
         assert!(hash.starts_with("$argon2id$"));
 
-        let valid = verify_password("correct-horse-battery".to_string(), Some(hash.clone()), &sem)
-            .await
-            .expect("verify should succeed");
+        let valid = verify_password(
+            "correct-horse-battery".to_string(),
+            Some(hash.clone()),
+            &sem,
+        )
+        .await
+        .expect("verify should succeed");
         assert!(valid);
 
         let invalid = verify_password("wrong-password-123".to_string(), Some(hash), &sem)
