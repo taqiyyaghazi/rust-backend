@@ -26,9 +26,12 @@ impl IdentityHttpState {
         jwt_config: JwtAuthConfig,
         refresh_ttl_days: i64,
     ) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
         let max_concurrent_hashes = std::thread::available_parallelism()
             .map(|n| n.get())
             .unwrap_or(4);
+        #[cfg(target_arch = "wasm32")]
+        let max_concurrent_hashes = 1;
         let hash_semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrent_hashes));
         let token_service = Arc::new(TokenService::new(
             refresh_token_repository,

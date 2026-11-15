@@ -6,22 +6,39 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[features]
+default = ["postgres"]
+postgres = ["dep:sqlx"]
+d1 = ["dep:worker", "dep:serde_json"]
+
 [dependencies]
 shared_kernel.workspace = true
 
 argon2.workspace = true
 async-trait.workspace = true
-axum.workspace = true
+axum = { version = "0.8", default-features = false, features = ["json", "macros"] }
 chrono.workspace = true
 hex.workspace = true
 serde.workspace = true
+serde_json = { workspace = true, optional = true }
 sha2.workspace = true
-sqlx.workspace = true
+sqlx = { workspace = true, optional = true }
 thiserror.workspace = true
-tokio.workspace = true
+tokio = { version = "1.40", default-features = false, features = ["sync"] }
 tracing.workspace = true
 utoipa.workspace = true
 uuid.workspace = true
+worker = { workspace = true, optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true }
+uuid = { version = "1.10", features = ["v4", "serde", "js"] }
+chrono = { version = "0.4", features = ["serde", "wasmbind"] }
 
 [dev-dependencies]
 jsonwebtoken.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
