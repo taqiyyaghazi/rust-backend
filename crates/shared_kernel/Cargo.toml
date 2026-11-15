@@ -8,5 +8,11 @@ license.workspace = true
 
 [dependencies]
 axum.workspace = true
+chrono.workspace = true
+jsonwebtoken.workspace = true
 serde.workspace = true
 utoipa.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
