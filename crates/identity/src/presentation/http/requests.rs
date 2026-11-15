@@ -27,10 +27,3 @@ pub struct RefreshTokenRequest {
     #[schema(example = "0123456789abcdef...", required = true)]
     pub refresh_token: Option<String>,
 }
-
-#[derive(Clone, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct LogoutRequest {
-    #[schema(example = "0123456789abcdef...", required = true)]
-    pub refresh_token: Option<String>,
-}

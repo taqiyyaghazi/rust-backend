@@ -5,7 +5,7 @@ use identity::{
             __path_login_user_handler, __path_logout_user_handler, __path_me_handler,
             __path_refresh_token_handler, __path_register_user_handler,
         },
-        requests::{LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterUserRequest},
+        requests::{LoginRequest, RefreshTokenRequest, RegisterUserRequest},
     },
 };
 use shared_kernel::presentation::ProblemDetails;
@@ -51,7 +51,6 @@ impl Modify for BearerSecurityAddon {
             RegisterUserRequest,
             LoginRequest,
             RefreshTokenRequest,
-            LogoutRequest,
             UserDto,
             AuthResponseDto,
             TokenPairDto,

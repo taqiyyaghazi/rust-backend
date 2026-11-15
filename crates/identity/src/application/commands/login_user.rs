@@ -67,17 +67,23 @@ impl LoginUserHandler {
             .await
             .map_err(|_| IdentityApplicationError::PasswordHashing)?;
         let raw_password = cmd.password;
+        let has_user = user_opt.is_some();
         let is_valid = tokio::task::spawn_blocking(move || {
-            let parsed = PasswordHash::new(&target_hash).ok()?;
-            Some(
-                Argon2::default()
-                    .verify_password(raw_password.as_bytes(), &parsed)
-                    .is_ok(),
-            )
+            let parsed = match PasswordHash::new(&target_hash) {
+                Ok(parsed) => parsed,
+                Err(_) => {
+                    if has_user {
+                        tracing::error!("Corrupted password hash in database");
+                    }
+                    return false;
+                }
+            };
+            Argon2::default()
+                .verify_password(raw_password.as_bytes(), &parsed)
+                .is_ok()
         })
         .await
-        .map_err(|_| IdentityApplicationError::PasswordHashing)?
-        .unwrap_or(false);
+        .map_err(|_| IdentityApplicationError::PasswordHashing)?;
         drop(_permit);
 
         let Some(user) = user_opt else {

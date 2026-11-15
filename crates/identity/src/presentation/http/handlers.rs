@@ -9,9 +9,7 @@ use crate::{
     },
     domain::{errors::IdentityDomainError, value_objects::UserId},
     presentation::{
-        http::requests::{
-            LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterUserRequest,
-        },
+        http::requests::{LoginRequest, RefreshTokenRequest, RegisterUserRequest},
         state::IdentityHttpState,
     },
 };
@@ -175,7 +173,7 @@ pub async fn refresh_token_handler(
     post,
     path = "/api/v1/logout",
     tag = "Identity Context",
-    request_body = LogoutRequest,
+    request_body = RefreshTokenRequest,
     responses(
         (status = 204, description = "Logged out"),
         (status = 400, description = "Missing refresh token", body = ProblemDetails)
@@ -183,7 +181,7 @@ pub async fn refresh_token_handler(
 )]
 pub async fn logout_user_handler(
     State(state): State<IdentityHttpState>,
-    payload: Result<Json<LogoutRequest>, JsonRejection>,
+    payload: Result<Json<RefreshTokenRequest>, JsonRejection>,
 ) -> Result<StatusCode, ApiError> {
     let payload = extract_json(payload)?;
     let refresh_token = require_non_empty(payload.refresh_token, "MISSING_REFRESH_TOKEN")?;
