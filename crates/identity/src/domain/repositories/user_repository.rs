@@ -1,4 +1,7 @@
-use crate::domain::{entities::User, value_objects::Email};
+use crate::domain::{
+    entities::User,
+    value_objects::{Email, UserId},
+};
 use async_trait::async_trait;
 use thiserror::Error;
 
@@ -17,4 +20,6 @@ pub enum RepositoryError {
 pub trait UserRepository: Send + Sync {
     async fn save(&self, user: &User) -> Result<(), RepositoryError>;
     async fn exists_by_email(&self, email: &Email) -> Result<bool, RepositoryError>;
+    async fn find_by_email(&self, email: &Email) -> Result<Option<User>, RepositoryError>;
+    async fn find_by_id(&self, id: UserId) -> Result<Option<User>, RepositoryError>;
 }
