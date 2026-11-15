@@ -95,3 +95,38 @@ cargo test --workspace
 - **Swagger UI**: `http://localhost:8080/swagger-ui`
 - **OpenAPI JSON**: `http://localhost:8080/api-docs/openapi.json`
 - **Health Check**: `http://localhost:8080/health`
+
+---
+
+## Deployment ke Cloudflare Workers + D1 (Free Tier)
+
+Proyek ini mendukung **Dual-Target** dalam satu Cargo Workspace:
+- `bins/api`: Server native Axum + PostgreSQL (`sqlx`) + Docker.
+- `bins/worker`: Cloudflare Worker (`wasm32-unknown-unknown`) + **Cloudflare D1 (SQLite)** dengan rute API yang sama (`identity_router`).
+
+### 1. Inisialisasi Database D1 & Secrets
+Jalankan helper script atau perintah `wrangler` berikut satu kali:
+```bash
+./scripts/setup_cloudflare_d1.sh
+```
+Lalu salin masing-masing `database_id` ke `wrangler.toml` (`[env.staging]` dan `[env.production]`), dan set `JWT_SECRET`:
+```bash
+npx wrangler@3 secret put JWT_SECRET --env staging
+npx wrangler@3 secret put JWT_SECRET --env production
+```
+
+### 2. Menjalankan Worker Secara Lokal
+```bash
+npx wrangler@3 d1 migrations apply rust-backend-db-staging --local --env staging
+npx wrangler@3 dev --env staging
+```
+
+### 3. CI/CD Pipeline (GitHub Actions)
+Workflow berada di `.github/workflows/ci-cd.yml`:
+- **Pull Request ke `main`**: Menjalankan `cargo fmt`, `cargo clippy`, unit + integration test PostgreSQL, cek kompilasi `wasm32-unknown-unknown`, lalu otomatis menjalankan migrasi D1 Staging & deploy ke Worker **Staging** (khusus PR internal).
+- **Push / Merge ke `main`**: Otomatis menjalankan migrasi D1 Production & deploy ke Worker **Production**.
+
+Pastikan GitHub Repository Secrets berikut sudah diisi:
+- `CLOUDFLARE_API_TOKEN` (izin *Workers Scripts: Edit* dan *D1: Edit*)
+- `CLOUDFLARE_ACCOUNT_ID`
+
