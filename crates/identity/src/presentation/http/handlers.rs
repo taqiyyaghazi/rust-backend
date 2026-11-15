@@ -1,5 +1,9 @@
 use crate::{
-    application::{commands::RegisterUserCommand, dto::UserDto, errors::IdentityApplicationError},
+    application::{
+        commands::RegisterUserCommand,
+        dto::AuthResponseDto,
+        errors::IdentityApplicationError,
+    },
     domain::errors::IdentityDomainError,
     presentation::{http::requests::RegisterUserRequest, state::IdentityHttpState},
 };
@@ -18,10 +22,17 @@ fn map_identity_error(err: IdentityApplicationError) -> ApiError {
             IdentityDomainError::InvalidPassword => ApiError::bad_request("INVALID_PASSWORD"),
         },
         IdentityApplicationError::EmailAlreadyExists(_) => ApiError::conflict("EMAIL_ALREADY_EXISTS"),
-        IdentityApplicationError::PasswordHashing => {
-            tracing::error!("Password hashing failed");
+        IdentityApplicationError::PasswordHashing | IdentityApplicationError::TokenGeneration => {
+            tracing::error!("Authentication internal error");
             ApiError::internal()
         }
+        IdentityApplicationError::InvalidCredentials => {
+            ApiError::unauthorized("INVALID_CREDENTIALS")
+        }
+        IdentityApplicationError::InvalidRefreshToken => {
+            ApiError::unauthorized("INVALID_REFRESH_TOKEN")
+        }
+        IdentityApplicationError::InvalidToken => ApiError::unauthorized("INVALID_TOKEN"),
         IdentityApplicationError::Repository(repo_err) => {
             tracing::error!(error = %repo_err, "Identity repository error");
             ApiError::internal()
@@ -36,7 +47,7 @@ fn map_identity_error(err: IdentityApplicationError) -> ApiError {
     tag = "Identity Context",
     request_body = RegisterUserRequest,
     responses(
-        (status = 201, description = "User registered successfully", body = UserDto),
+        (status = 201, description = "User registered successfully", body = AuthResponseDto),
         (status = 400, description = "Domain validation error", body = ProblemDetails),
         (status = 409, description = "Email already registered", body = ProblemDetails)
     )
@@ -44,7 +55,7 @@ fn map_identity_error(err: IdentityApplicationError) -> ApiError {
 pub async fn register_user_handler(
     State(state): State<IdentityHttpState>,
     payload: Result<Json<RegisterUserRequest>, JsonRejection>,
-) -> Result<(StatusCode, Json<UserDto>), ApiError> {
+) -> Result<(StatusCode, Json<AuthResponseDto>), ApiError> {
     let Json(payload) = payload.map_err(|rejection| match rejection {
         JsonRejection::MissingJsonContentType(_) => ApiError::bad_request("INVALID_CONTENT_TYPE"),
         JsonRejection::BytesRejection(r) if r.status() == StatusCode::PAYLOAD_TOO_LARGE => {

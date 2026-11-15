@@ -12,6 +12,18 @@ pub enum IdentityApplicationError {
     #[error("Password hashing error")]
     PasswordHashing,
 
+    #[error("Invalid credentials")]
+    InvalidCredentials,
+
+    #[error("Invalid or expired refresh token")]
+    InvalidRefreshToken,
+
+    #[error("Invalid token")]
+    InvalidToken,
+
+    #[error("Token generation error")]
+    TokenGeneration,
+
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 }
