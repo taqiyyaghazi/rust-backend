@@ -30,27 +30,6 @@ impl User {
         }
     }
 
-    /// Reconstitutes a `User` aggregate from persistence.
-    pub fn reconstitute(
-        id: UserId,
-        email: Email,
-        full_name: FullName,
-        password_hash: impl Into<String>,
-        is_active: bool,
-        created_at: DateTime<Utc>,
-        updated_at: DateTime<Utc>,
-    ) -> Self {
-        Self {
-            id,
-            email,
-            full_name,
-            password_hash: password_hash.into(),
-            is_active,
-            created_at,
-            updated_at,
-        }
-    }
-
     pub fn id(&self) -> UserId {
         self.id
     }

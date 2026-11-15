@@ -18,11 +18,11 @@ impl Email {
         }
 
         let (local, domain) = (parts[0], parts[1]);
-        if local.is_empty()
-            || domain.len() < 3
+        if domain.len() < 3
             || !domain.contains('.')
-            || domain.starts_with('.')
-            || domain.ends_with('.')
+            || local.split('.').any(str::is_empty)
+            || domain.split('.').any(str::is_empty)
+            || normalized.chars().any(|c| c.is_whitespace() || c.is_control())
         {
             return Err(IdentityDomainError::InvalidEmail(normalized));
         }
@@ -53,6 +53,10 @@ mod tests {
         assert!(Email::parse("invalid-email").is_err());
         assert!(Email::parse("@example.com").is_err());
         assert!(Email::parse("user@localhost").is_err());
+        assert!(Email::parse("budi santoso@example.com").is_err());
+        assert!(Email::parse("user@\texample.com").is_err());
+        assert!(Email::parse("user@a..com").is_err());
+        assert!(Email::parse(".user@example.com").is_err());
         assert!(Email::parse(format!("{}@example.com", "a".repeat(250))).is_err());
     }
 }

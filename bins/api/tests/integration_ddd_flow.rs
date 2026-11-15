@@ -7,7 +7,6 @@ use http_body_util::BodyExt;
 use identity::application::dto::UserDto;
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
-use std::env;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -26,17 +25,11 @@ async fn setup_test_db(database_url: &str) {
 }
 
 fn test_config() -> AppConfig {
-    let _ = dotenvy::dotenv();
-    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
-        "postgres://ddd_user:ddd_password@localhost:5432/ddd_backend".to_string()
-    });
-
-    AppConfig {
-        host: "127.0.0.1".to_string(),
-        port: 0,
-        database_url,
-        cors_allowed_origins: vec!["http://localhost:3000".to_string()],
-    }
+    let mut config = AppConfig::from_env();
+    config.host = "127.0.0.1".to_string();
+    config.port = 0;
+    config.cors_allowed_origins = vec!["http://localhost:3000".to_string()];
+    config
 }
 
 #[tokio::test]

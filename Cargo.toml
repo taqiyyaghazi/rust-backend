@@ -9,7 +9,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.89"
 authors = ["DDD Rust Backend Team"]
 license = "MIT"
 
@@ -25,7 +25,7 @@ async-trait = "0.1"
 # Web Framework & HTTP
 axum = { version = "0.8", features = ["macros", "json"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = ["trace", "cors", "request-id"] }
+tower-http = { version = "0.6", features = ["cors"] }
 
 # Database (SQLx + PostgreSQL)
 sqlx = { version = "0.8", features = [
@@ -51,7 +51,7 @@ argon2 = "0.5"
 
 # Observability & Config
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 
 # OpenAPI / Swagger UI

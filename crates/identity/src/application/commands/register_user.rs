@@ -25,11 +25,18 @@ pub struct RegisterUserCommand {
 #[derive(Clone)]
 pub struct RegisterUserHandler {
     user_repository: Arc<dyn UserRepository>,
+    hash_semaphore: Arc<tokio::sync::Semaphore>,
 }
 
 impl RegisterUserHandler {
     pub fn new(user_repository: Arc<dyn UserRepository>) -> Self {
-        Self { user_repository }
+        let max_concurrent_hashes = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
+        Self {
+            user_repository,
+            hash_semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent_hashes)),
+        }
     }
 
     pub async fn handle(
@@ -42,12 +49,17 @@ impl RegisterUserHandler {
             return Err(IdentityDomainError::InvalidPassword.into());
         }
 
-        if self.user_repository.find_by_email(&email).await?.is_some() {
+        if self.user_repository.exists_by_email(&email).await? {
             return Err(IdentityApplicationError::EmailAlreadyExists(
                 email.to_string(),
             ));
         }
 
+        let _permit = self
+            .hash_semaphore
+            .acquire()
+            .await
+            .map_err(|_| IdentityApplicationError::PasswordHashing)?;
         let raw_password = cmd.password;
         let password_hash = tokio::task::spawn_blocking(move || {
             let salt = SaltString::generate(&mut OsRng);
@@ -58,6 +70,7 @@ impl RegisterUserHandler {
         .await
         .map_err(|_| IdentityApplicationError::PasswordHashing)?
         .map_err(|_| IdentityApplicationError::PasswordHashing)?;
+        drop(_permit);
 
         let user = User::register(email, full_name, password_hash);
         if let Err(err) = self.user_repository.save(&user).await {
