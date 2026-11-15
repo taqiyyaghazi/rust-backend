@@ -64,7 +64,8 @@ fn extract_json<T>(payload: Result<Json<T>, JsonRejection>) -> Result<T, ApiErro
 
 fn require_non_empty(value: Option<String>, error_code: &'static str) -> Result<String, ApiError> {
     value
-        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
         .ok_or_else(|| ApiError::bad_request(error_code))
 }
 
@@ -220,4 +221,16 @@ pub async fn me_handler(
         .map_err(map_identity_error)?;
 
     Ok((StatusCode::OK, Json(user)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::require_non_empty;
+
+    #[test]
+    fn require_non_empty_trims_surrounding_whitespace() {
+        let out = require_non_empty(Some("  abc123  ".to_string()), "MISSING_REFRESH_TOKEN")
+            .expect("expected trimmed token");
+        assert_eq!(out, "abc123");
+    }
 }
