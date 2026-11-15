@@ -177,13 +177,25 @@ fn build_worker_router(env: &Env) -> worker::Result<Router> {
     Ok(app)
 }
 
+fn error_response_from_worker_err(err: worker::Error) -> http::Response<axum::body::Body> {
+    use axum::response::IntoResponse;
+    #[cfg(target_arch = "wasm32")]
+    worker::console_error!("Worker configuration/bootstrap error: {}", err);
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = err;
+    ApiError::internal().into_response()
+}
+
 #[event(fetch)]
 pub async fn fetch(
     req: HttpRequest,
     env: Env,
     _ctx: Context,
 ) -> worker::Result<http::Response<axum::body::Body>> {
-    let mut router = build_worker_router(&env)?;
+    let mut router = match build_worker_router(&env) {
+        Ok(router) => router,
+        Err(err) => return Ok(error_response_from_worker_err(err)),
+    };
     router
         .call(req)
         .await
@@ -219,5 +231,13 @@ mod tests {
                 "https://app.example.com".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn router_build_error_returns_json_500_response() {
+        let resp = error_response_from_worker_err(worker::Error::RustError(
+            "Missing JWT_SECRET binding".to_string(),
+        ));
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 }
