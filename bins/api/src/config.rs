@@ -7,6 +7,9 @@ pub struct AppConfig {
     pub database_url: String,
     pub cors_allowed_origins: Vec<String>,
     pub enable_swagger_ui: bool,
+    pub jwt_secret: String,
+    pub jwt_access_ttl_secs: u64,
+    pub refresh_token_ttl_days: i64,
 }
 
 impl AppConfig {
@@ -35,12 +38,26 @@ impl AppConfig {
             .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
             .unwrap_or(false);
 
+        let jwt_secret = env::var("JWT_SECRET")
+            .unwrap_or_else(|_| "dev-only-jwt-secret-change-in-production-32b".to_string());
+        let jwt_access_ttl_secs = env::var("JWT_ACCESS_TTL_SECS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(900);
+        let refresh_token_ttl_days = env::var("REFRESH_TOKEN_TTL_DAYS")
+            .ok()
+            .and_then(|v| v.parse::<i64>().ok())
+            .unwrap_or(7);
+
         Self {
             host,
             port,
             database_url,
             cors_allowed_origins,
             enable_swagger_ui,
+            jwt_secret,
+            jwt_access_ttl_secs,
+            refresh_token_ttl_days,
         }
     }
 

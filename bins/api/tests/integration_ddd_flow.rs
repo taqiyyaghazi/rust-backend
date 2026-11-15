@@ -4,7 +4,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use http_body_util::BodyExt;
-use identity::application::dto::UserDto;
+use identity::application::dto::{AuthResponseDto, TokenPairDto, UserDto};
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use tower::ServiceExt;
@@ -18,10 +18,10 @@ async fn setup_test_db(database_url: &str) {
         .expect("Failed to connect to PostgreSQL for integration test");
 
     // Clean up test data before running test
-    sqlx::query("TRUNCATE TABLE users CASCADE")
+    sqlx::query("TRUNCATE TABLE refresh_tokens, users CASCADE")
         .execute(&pool)
         .await
-        .expect("Failed to truncate users table in integration test");
+        .expect("Failed to truncate tables in integration test");
 }
 
 fn test_config() -> AppConfig {
@@ -62,9 +62,64 @@ async fn register_endpoint_and_removed_routes_flow() {
     assert_eq!(register_res.status(), StatusCode::CREATED);
 
     let body_bytes = register_res.into_body().collect().await.unwrap().to_bytes();
-    let created_user: UserDto = serde_json::from_slice(&body_bytes).unwrap();
-    assert_eq!(created_user.email, unique_email);
-    assert!(created_user.is_active);
+    let reg_auth: AuthResponseDto = serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(reg_auth.user.email, unique_email);
+    assert!(reg_auth.user.is_active);
+    assert!(!reg_auth.access_token.is_empty());
+    assert!(!reg_auth.refresh_token.is_empty());
+    assert_eq!(reg_auth.expires_in, 900);
+
+    // 1b. Immediately access protected GET /api/v1/me using access_token from register
+    let me_req = Request::builder()
+        .method("GET")
+        .uri("/api/v1/me")
+        .header("authorization", format!("Bearer {}", reg_auth.access_token))
+        .body(Body::empty())
+        .unwrap();
+    let me_res = app.clone().oneshot(me_req).await.unwrap();
+    assert_eq!(me_res.status(), StatusCode::OK);
+    let me_body: UserDto =
+        serde_json::from_slice(&me_res.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(me_body.id, reg_auth.user.id);
+    assert_eq!(me_body.email, unique_email);
+
+    // 1c. GET /api/v1/me without token -> 401 UNAUTHORIZED; invalid token -> 401 INVALID_TOKEN
+    let me_unauth = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/me")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(me_unauth.status(), StatusCode::UNAUTHORIZED);
+    let me_unauth_body: serde_json::Value = serde_json::from_slice(
+        &me_unauth.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(me_unauth_body["errorCode"], "UNAUTHORIZED");
+
+    let me_bad_token = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/me")
+                .header("authorization", "Bearer bad.jwt.token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(me_bad_token.status(), StatusCode::UNAUTHORIZED);
+    let me_bad_body: serde_json::Value = serde_json::from_slice(
+        &me_bad_token.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(me_bad_body["errorCode"], "INVALID_TOKEN");
 
     // 2. Duplicate email -> 409 Conflict
     let duplicate_req = Request::builder()
@@ -293,11 +348,154 @@ async fn register_endpoint_and_removed_routes_flow() {
         .header("content-type", "application/json")
         .body(Body::from(large_body))
         .unwrap();
-    let large_res = app.oneshot(large_req).await.unwrap();
+    let large_res = app.clone().oneshot(large_req).await.unwrap();
     assert_eq!(large_res.status(), StatusCode::PAYLOAD_TOO_LARGE);
     let large_json: serde_json::Value = serde_json::from_slice(
         &large_res.into_body().collect().await.unwrap().to_bytes(),
     )
     .unwrap();
     assert_eq!(large_json["errorCode"], "PAYLOAD_TOO_LARGE");
+
+    // 13. Login, Refresh Rotation, and Idempotent Logout lifecycle
+    let login_res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/login")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "email": unique_email,
+                        "password": "secret123"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(login_res.status(), StatusCode::OK);
+    let login_auth: AuthResponseDto = serde_json::from_slice(
+        &login_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(login_auth.user.email, unique_email);
+
+    let bad_login = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/login")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "email": unique_email,
+                        "password": "wrongpassword"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(bad_login.status(), StatusCode::UNAUTHORIZED);
+    let bad_login_body: serde_json::Value = serde_json::from_slice(
+        &bad_login.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(bad_login_body["errorCode"], "INVALID_CREDENTIALS");
+
+    // Empty/whitespace refreshToken -> 400 MISSING_REFRESH_TOKEN
+    let empty_refresh = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/refresh")
+                .header("content-type", "application/json")
+                .body(Body::from(json!({ "refreshToken": "   " }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(empty_refresh.status(), StatusCode::BAD_REQUEST);
+    let empty_refresh_body: serde_json::Value = serde_json::from_slice(
+        &empty_refresh.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(empty_refresh_body["errorCode"], "MISSING_REFRESH_TOKEN");
+
+    // Refresh rotation: new pair works, reusing old refreshToken -> 401 INVALID_REFRESH_TOKEN
+    let refresh_res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/refresh")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({ "refreshToken": login_auth.refresh_token }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(refresh_res.status(), StatusCode::OK);
+    let rotated: TokenPairDto = serde_json::from_slice(
+        &refresh_res.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap();
+    assert_ne!(rotated.refresh_token, login_auth.refresh_token);
+
+    let reuse_res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/refresh")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({ "refreshToken": login_auth.refresh_token }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(reuse_res.status(), StatusCode::UNAUTHORIZED);
+
+    // Logout idempotently revokes the rotated refreshToken
+    for _ in 0..2 {
+        let logout_res = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/logout")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({ "refreshToken": rotated.refresh_token }).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(logout_res.status(), StatusCode::NO_CONTENT);
+    }
+
+    let after_logout_refresh = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/refresh")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({ "refreshToken": rotated.refresh_token }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(after_logout_refresh.status(), StatusCode::UNAUTHORIZED);
 }
