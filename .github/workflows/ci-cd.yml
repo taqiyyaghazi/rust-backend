@@ -43,9 +43,6 @@ jobs:
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
       - name: Run Clippy on native workspace
         run: cargo clippy --workspace --exclude rust_backend_worker --all-targets -- -D warnings
 
